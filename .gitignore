@@ -98,6 +98,13 @@ dist
 # Sveltekit cache directory
 .svelte-kit/
 
+# Embedded frontend output copied for backend packaging
+server/static/
+server/public/
+internal/httpapi/static/
+!internal/httpapi/static/.keep
+!internal/httpapi/static/index.html
+
 # vitepress build output
 **/.vitepress/dist
 
