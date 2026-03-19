@@ -132,6 +132,9 @@ type ScanJobResponse struct {
 	Error   string     `json:"error,omitempty"`
 }
 
+func (j *ScanJobResponse) Lock()   { j.mu.Lock() }
+func (j *ScanJobResponse) Unlock() { j.mu.Unlock() }
+
 // --- Pagination ---
 type PagedResponse[T any] struct {
 	Items []T `json:"items"`
