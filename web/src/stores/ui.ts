@@ -4,36 +4,35 @@ type Theme = 'light' | 'dark' | 'system'
 
 interface UIState {
   theme: Theme
-  sidebarCollapsed: boolean
-  selected: Set<string>
+  sidebarOpen: boolean
+  selectedIds: Set<string>
   setTheme: (t: Theme) => void
   toggleSidebar: () => void
-  toggleSelect: (id: string) => void
+  selectEntry: (id: string, multi: boolean) => void
   clearSelection: () => void
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  theme: (localStorage.getItem('theme') as Theme) ?? 'system',
-  sidebarCollapsed: false,
-  selected: new Set(),
+export const useUI = create<UIState>((set) => ({
+  theme: (localStorage.getItem('theme') as Theme) || 'system',
+  sidebarOpen: true,
+  selectedIds: new Set(),
 
-  setTheme: (theme) => {
-    localStorage.setItem('theme', theme)
+  setTheme: (t) => {
+    localStorage.setItem('theme', t)
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const isDark = theme === 'dark' || (theme === 'system' && prefersDark)
+    const isDark = t === 'dark' || (t === 'system' && prefersDark)
     document.documentElement.classList.toggle('dark', isDark)
-    set({ theme })
+    set({ theme: t })
   },
 
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
-  toggleSelect: (id) =>
-    set((s) => {
-      const next = new Set(s.selected)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return { selected: next }
-    }),
+  selectEntry: (id, multi) => set((s) => {
+    const next = new Set(multi ? s.selectedIds : [])
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return { selectedIds: next }
+  }),
 
-  clearSelection: () => set({ selected: new Set() }),
+  clearSelection: () => set({ selectedIds: new Set() }),
 }))
