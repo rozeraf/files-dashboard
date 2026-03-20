@@ -60,6 +60,19 @@ export const api = {
     delete: (ids: string[]) => del<void>('/fs/entries', { ids }),
     mkdir: (rootId: string, relPath: string, name: string) =>
       post<void>('/fs/directories', { rootId, relPath, name }),
+    upload: (rootId: string, relPath: string, file: File): Promise<Entry> => {
+      const fd = new FormData()
+      fd.append('rootId', rootId)
+      fd.append('relPath', relPath)
+      fd.append('file', file)
+      return fetch('/api/fs/upload', { method: 'POST', body: fd }).then(async r => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({ error: r.statusText }))
+          throw new Error(err.error || r.statusText)
+        }
+        return r.json()
+      })
+    },
   },
   libraries: {
     list: () => get<Library[]>('/libraries'),
