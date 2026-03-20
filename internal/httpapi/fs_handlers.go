@@ -118,6 +118,27 @@ func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Populate IDs from SQLite by matching (root_id, parent_rel_path)
+	if len(entries) > 0 {
+		idByRelPath := make(map[string]string, len(entries))
+		rows, qErr := h.db.Query(`SELECT id, rel_path FROM entries WHERE root_id=? AND parent_rel_path=?`, rootID, relPath)
+		if qErr == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, rp string
+				rows.Scan(&id, &rp)
+				idByRelPath[rp] = id
+			}
+		}
+		for i := range entries {
+			if id, ok := idByRelPath[entries[i].RelPath]; ok {
+				entries[i].ID = id
+				entries[i].RootID = rootID
+			}
+		}
+	}
+
 	writeJSON(w, 200, entries)
 }
 
@@ -201,7 +222,10 @@ func (h *Handler) deleteEntries(w http.ResponseWriter, r *http.Request) {
 			Scan(&rootPath, &relPath); err != nil {
 			continue
 		}
-		fsops.Delete(rootPath, relPath) // nolint - best effort
+		if err := fsops.Delete(rootPath, relPath); err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
 		h.syncer.AfterDelete([]string{id})
 	}
 	w.WriteHeader(204)
