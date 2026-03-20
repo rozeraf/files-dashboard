@@ -80,6 +80,15 @@ func (h *Handler) categoryTree(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, tree)
 }
 
+func (h *Handler) getCategory(w http.ResponseWriter, r *http.Request) {
+	cat, err := h.store.GetCategory(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 404, "not found")
+		return
+	}
+	writeJSON(w, 200, cat)
+}
+
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	var req model.CreateCategoryRequest
 	if err := decode(r, &req); err != nil || req.Name == "" || req.LibraryID == "" {

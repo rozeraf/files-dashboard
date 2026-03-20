@@ -84,6 +84,7 @@ export const api = {
     categories: (id: string) => get<Category[]>(`/libraries/${id}/categories`),
   },
   categories: {
+    get: (id: string) => get<Category>(`/categories/${id}`),
     create: (libraryId: string, parentId: string | null, name: string) =>
       post<Category>('/categories', { libraryId, parentId, name }),
     update: (id: string, body: Partial<{ name: string; parentId: string; position: number }>) =>

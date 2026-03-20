@@ -1,6 +1,6 @@
 // web/src/components/ui/EntryDetailPanel.tsx
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatSize, formatDate, mimeToIcon } from '@/lib/utils'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Heart, HeartOff, Pencil, Trash2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Heart, HeartOff, Pencil, Trash2, Tag, FolderOpen, Library } from 'lucide-react'
 
 interface Props {
   entryId: string | null
@@ -22,6 +24,10 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [catsOpen, setCatsOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const [colOpen, setColOpen] = useState(false)
+  const [colId, setColId] = useState('')
 
   const { data } = useQuery({
     queryKey: ['entry', entryId],
@@ -29,17 +35,76 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
     enabled: !!entryId,
   })
 
+  // For category assignment dialog
+  const { data: libraries = [] } = useQuery({
+    queryKey: ['libraries'],
+    queryFn: api.libraries.list,
+    enabled: catsOpen,
+  })
+  const libCategoryResults = useQueries({
+    queries: libraries.map(lib => ({
+      queryKey: ['categories', lib.id],
+      queryFn: () => api.libraries.categories(lib.id),
+      enabled: catsOpen,
+    })),
+  })
+  const libCategories = libraries.map((lib, i) => ({
+    lib,
+    cats: (libCategoryResults[i]?.data ?? []).flatMap(c => [c, ...(c.children ?? [])]),
+  }))
+
+  // For tag assignment dialog
+  const { data: allTags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: api.tags.list,
+    enabled: tagsOpen,
+  })
+
+  // For collection assignment dialog
+  const { data: allCollections = [] } = useQuery({
+    queryKey: ['collections'],
+    queryFn: api.collections.list,
+    enabled: colOpen,
+  })
+
+  const [pendingCatIds, setPendingCatIds] = useState<Set<string>>(new Set())
+  const [pendingTagIds, setPendingTagIds] = useState<Set<string>>(new Set())
+
+  const openCats = () => {
+    if (!data) return
+    setPendingCatIds(new Set(data.categories.map(c => c.id)))
+    setCatsOpen(true)
+  }
+  const openTags = () => {
+    if (!data) return
+    setPendingTagIds(new Set(data.tags.map(t => t.id)))
+    setTagsOpen(true)
+  }
+
+  const toggleCat = (id: string) => setPendingCatIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  const toggleTag = (id: string) => setPendingTagIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const invalidateEntry = () => qc.invalidateQueries({ queryKey: ['entry', entryId] })
+
   const toggleFav = useMutation({
     mutationFn: () => data?.favorited
       ? api.favorites.remove(entryId!)
       : api.favorites.add(entryId!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['entry', entryId] }),
+    onSuccess: invalidateEntry,
   })
 
   const rename = useMutation({
     mutationFn: () => api.fs.rename(entryId!, renameName),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entry', entryId] })
+      invalidateEntry()
       setRenameOpen(false)
       onRenamed?.()
     },
@@ -51,6 +116,31 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
       setDeleteOpen(false)
       onDeleted ? onDeleted() : onClose()
     },
+  })
+
+  const assignCats = useMutation({
+    mutationFn: () => {
+      const current = new Set(data!.categories.map(c => c.id))
+      const add = [...pendingCatIds].filter(id => !current.has(id))
+      const remove = [...current].filter(id => !pendingCatIds.has(id))
+      return api.entries.assignCategories(entryId!, add, remove)
+    },
+    onSuccess: () => { invalidateEntry(); setCatsOpen(false) },
+  })
+
+  const assignTags = useMutation({
+    mutationFn: () => {
+      const current = new Set(data!.tags.map(t => t.id))
+      const add = [...pendingTagIds].filter(id => !current.has(id))
+      const remove = [...current].filter(id => !pendingTagIds.has(id))
+      return api.entries.assignTags(entryId!, add, remove)
+    },
+    onSuccess: () => { invalidateEntry(); setTagsOpen(false) },
+  })
+
+  const addToCol = useMutation({
+    mutationFn: () => api.collections.add(colId, entryId!),
+    onSuccess: () => { setColOpen(false); setColId('') },
   })
 
   const openRename = () => { setRenameName(data?.name ?? ''); setRenameOpen(true) }
@@ -108,40 +198,58 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
             </div>
 
             {/* Categories */}
-            {data.categories.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Categories</p>
-                <div className="flex flex-wrap gap-1">
-                  {data.categories.map(c => <Badge key={c.id} variant="secondary">{c.name}</Badge>)}
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Categories</p>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={openCats}>
+                  <Library size={11} />
+                </Button>
               </div>
-            )}
+              {data.categories.length > 0
+                ? <div className="flex flex-wrap gap-1">{data.categories.map(c => <Badge key={c.id} variant="secondary">{c.name}</Badge>)}</div>
+                : <p className="text-xs text-muted-foreground">None</p>
+              }
+            </div>
 
             {/* Tags */}
-            {data.tags.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Tags</p>
-                <div className="flex flex-wrap gap-1">
-                  {data.tags.map(t => (
-                    <Badge key={t.id} style={{ backgroundColor: t.color || undefined }} variant="outline">{t.name}</Badge>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Tags</p>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={openTags}>
+                  <Tag size={11} />
+                </Button>
               </div>
-            )}
+              {data.tags.length > 0
+                ? <div className="flex flex-wrap gap-1">{data.tags.map(t => (
+                    <Badge key={t.id} style={{ backgroundColor: t.color || undefined }} variant="outline">{t.name}</Badge>
+                  ))}</div>
+                : <p className="text-xs text-muted-foreground">None</p>
+              }
+            </div>
+
+            {/* Collections */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Collections</p>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setColOpen(true)}>
+                  <FolderOpen size={11} />
+                </Button>
+              </div>
+              {data.collections.length > 0
+                ? <div className="flex flex-wrap gap-1">{data.collections.map(c => <Badge key={c.id} variant="secondary">{c.name}</Badge>)}</div>
+                : <p className="text-xs text-muted-foreground">None</p>
+              }
+            </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Rename dialog — outside Sheet to avoid z-index issues */}
+      {/* Rename dialog */}
       <Dialog open={renameOpen} onOpenChange={o => !o && setRenameOpen(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Rename</DialogTitle></DialogHeader>
-          <Input
-            value={renameName}
-            onChange={e => setRenameName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && renameName && rename.mutate()}
-            autoFocus
-          />
+          <Input value={renameName} onChange={e => setRenameName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && renameName && rename.mutate()} autoFocus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
             <Button onClick={() => rename.mutate()} disabled={!renameName || rename.isPending}>Rename</Button>
@@ -157,6 +265,84 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category assignment dialog */}
+      <Dialog open={catsOpen} onOpenChange={o => !o && setCatsOpen(false)}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Assign Categories</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {libCategories.map(({ lib, cats }) => cats.length === 0 ? null : (
+              <div key={lib.id}>
+                <p className="text-sm font-medium mb-2">{lib.icon} {lib.name}</p>
+                <div className="space-y-1 pl-2">
+                  {cats.map(cat => (
+                    <label key={cat.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                      <Checkbox
+                        checked={pendingCatIds.has(cat.id)}
+                        onCheckedChange={() => toggleCat(cat.id)}
+                      />
+                      {cat.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatsOpen(false)}>Cancel</Button>
+            <Button onClick={() => assignCats.mutate()} disabled={assignCats.isPending}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tag assignment dialog */}
+      <Dialog open={tagsOpen} onOpenChange={o => !o && setTagsOpen(false)}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Assign Tags</DialogTitle></DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            {allTags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => toggleTag(tag.id)}
+                className="transition-opacity"
+              >
+                <Badge
+                  style={{ backgroundColor: tag.color || undefined }}
+                  variant={pendingTagIds.has(tag.id) ? 'default' : 'outline'}
+                  className="cursor-pointer text-sm px-3 py-1"
+                >
+                  {tag.name}
+                </Badge>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTagsOpen(false)}>Cancel</Button>
+            <Button onClick={() => assignTags.mutate()} disabled={assignTags.isPending}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add to collection dialog */}
+      <Dialog open={colOpen} onOpenChange={o => !o && setColOpen(false)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add to Collection</DialogTitle></DialogHeader>
+          <Select value={colId} onValueChange={setColId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a collection…" />
+            </SelectTrigger>
+            <SelectContent>
+              {allCollections.map(col => (
+                <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColOpen(false)}>Cancel</Button>
+            <Button onClick={() => addToCol.mutate()} disabled={!colId || addToCol.isPending}>Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

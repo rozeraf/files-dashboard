@@ -64,6 +64,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Get("/libraries/{id}/categories", h.categoryTree)
 
 		// Categories
+		r.Get("/categories/{id}", h.getCategory)
 		r.Post("/categories", h.createCategory)
 		r.Patch("/categories/{id}", h.updateCategory)
 		r.Delete("/categories/{id}", h.deleteCategory)
