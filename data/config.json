@@ -1,0 +1,7 @@
+{
+  "host": "127.0.0.1",
+  "port": 4537,
+  "app_name": "files-dashboard",
+  "roots": [],
+  "lan_enabled": false
+}
