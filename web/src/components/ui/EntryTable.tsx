@@ -15,11 +15,11 @@ export function EntryTable({ entries, onSelect }: Props) {
   const { selectedIds, selectEntry } = useUI()
   const [lightboxId, setLightboxId] = useState<string | null>(null)
 
-  const imageEntries = entries.filter(e => e.mime?.startsWith('image/'))
+  const mediaEntries = entries.filter(e => e.mime?.startsWith('image/') || e.mime?.startsWith('video/'))
 
   const handleClick = (e: React.MouseEvent, entry: Entry) => {
     if (e.shiftKey || e.metaKey) { selectEntry(entry.id, true); return }
-    if (entry.mime?.startsWith('image/')) { setLightboxId(entry.id) }
+    if (entry.mime?.startsWith('image/') || entry.mime?.startsWith('video/')) { setLightboxId(entry.id) }
     else { onSelect?.(entry) }
   }
 
@@ -58,7 +58,7 @@ export function EntryTable({ entries, onSelect }: Props) {
 
       {lightboxId && (
         <Lightbox
-          entries={imageEntries}
+          entries={mediaEntries}
           activeId={lightboxId}
           onClose={() => setLightboxId(null)}
         />

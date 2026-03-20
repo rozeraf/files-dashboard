@@ -2,13 +2,16 @@
 import { useEffect, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Entry, api } from '@/lib/api'
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Play } from 'lucide-react'
 
 interface Props {
   entries: Entry[]
   activeId: string
   onClose: () => void
 }
+
+const isImageEntry = (e: Entry) => e.mime?.startsWith('image/')
+const isVideoEntry = (e: Entry) => e.mime?.startsWith('video/')
 
 export function Lightbox({ entries, activeId, onClose }: Props) {
   const [currentId, setCurrentId] = useState(activeId)
@@ -17,6 +20,8 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
   const idx = entries.findIndex(e => e.id === currentId)
   const entry = entries[idx]
+  const isImage = entry ? isImageEntry(entry) : false
+  const isVideo = entry ? isVideoEntry(entry) : false
 
   const go = useCallback((dir: -1 | 1) => {
     const next = idx + dir
@@ -29,98 +34,95 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // don't steal keys from the video player controls
+      if (e.target instanceof HTMLVideoElement) return
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowLeft') go(-1)
       if (e.key === 'ArrowRight') go(1)
-      if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.5, 4))
-      if (e.key === '-') setZoom(z => Math.max(z - 0.5, 0.5))
+      if (isImage && (e.key === '+' || e.key === '=')) setZoom(z => Math.min(z + 0.5, 4))
+      if (isImage && e.key === '-') setZoom(z => Math.max(z - 0.5, 0.5))
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [go, onClose])
+  }, [go, onClose, isImage])
 
-  // sync when parent changes activeId (e.g. opening fresh)
   useEffect(() => { setCurrentId(activeId); setZoom(1); setLoaded(false) }, [activeId])
 
   if (!entry) return null
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 bg-black/96 flex flex-col"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 bg-black/96 flex flex-col" onClick={onClose}>
+
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={e => e.stopPropagation()}>
         <span className="text-white/50 text-sm font-mono">{idx + 1} / {entries.length}</span>
         <span className="text-white/80 text-sm truncate max-w-md text-center">{entry.name}</span>
         <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={() => setZoom(z => Math.max(z - 0.5, 0.5))}
-            title="Zoom out (−)"
-          >
-            <ZoomOut size={18} />
-          </button>
-          <span className="text-white/40 text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button
-            className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={() => setZoom(z => Math.min(z + 0.5, 4))}
-            title="Zoom in (+)"
-          >
-            <ZoomIn size={18} />
-          </button>
-          <button
-            className="ml-2 p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={onClose}
-            title="Close (Esc)"
-          >
+          {isImage && <>
+            <button className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => setZoom(z => Math.max(z - 0.5, 0.5))} title="Zoom out (−)">
+              <ZoomOut size={18} />
+            </button>
+            <span className="text-white/40 text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+            <button className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => setZoom(z => Math.min(z + 0.5, 4))} title="Zoom in (+)">
+              <ZoomIn size={18} />
+            </button>
+          </>}
+          <button className="ml-2 p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={onClose} title="Close (Esc)">
             <X size={20} />
           </button>
         </div>
       </div>
 
-      {/* Image area */}
+      {/* Media area */}
       <div className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0" onClick={onClose}>
-        {/* Prev */}
+
         {idx > 0 && (
-          <button
-            className="absolute left-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={e => { e.stopPropagation(); go(-1) }}
-            title="Previous (←)"
-          >
+          <button className="absolute left-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={e => { e.stopPropagation(); go(-1) }} title="Previous (←)">
             <ChevronLeft size={36} />
           </button>
         )}
 
-        {/* Image */}
         <div
           className="transition-transform duration-150 ease-out"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+          style={isImage ? { transform: `scale(${zoom})`, transformOrigin: 'center' } : undefined}
           onClick={e => e.stopPropagation()}
         >
-          {!loaded && (
-            <div className="w-32 h-32 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
+          {isImage && <>
+            {!loaded && (
+              <div className="w-32 h-32 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+            <img
+              key={currentId}
+              src={api.fs.raw(currentId)}
+              alt={entry.name}
+              onLoad={() => setLoaded(true)}
+              className="max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)] object-contain"
+              style={{ display: loaded ? 'block' : 'none' }}
+              draggable={false}
+            />
+          </>}
+
+          {isVideo && (
+            <video
+              key={currentId}
+              src={api.fs.raw(currentId)}
+              controls
+              autoPlay
+              className="max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)]"
+              onLoadedData={() => setLoaded(true)}
+            />
           )}
-          <img
-            key={currentId}
-            src={api.fs.raw(currentId)}
-            alt={entry.name}
-            onLoad={() => setLoaded(true)}
-            className="max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)] object-contain"
-            style={{ display: loaded ? 'block' : 'none' }}
-            draggable={false}
-          />
         </div>
 
-        {/* Next */}
         {idx < entries.length - 1 && (
-          <button
-            className="absolute right-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={e => { e.stopPropagation(); go(1) }}
-            title="Next (→)"
-          >
+          <button className="absolute right-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={e => { e.stopPropagation(); go(1) }} title="Next (→)">
             <ChevronRight size={36} />
           </button>
         )}
@@ -128,25 +130,29 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
       {/* Filmstrip */}
       {entries.length > 1 && (
-        <div
-          className="h-16 shrink-0 flex gap-1 items-center px-3 pb-2 overflow-x-auto"
-          onClick={e => e.stopPropagation()}
-        >
+        <div className="h-16 shrink-0 flex gap-1 items-center px-3 pb-2 overflow-x-auto"
+          onClick={e => e.stopPropagation()}>
           {entries.map((e, i) => (
             <button
               key={e.id}
               onClick={() => { setCurrentId(e.id); setZoom(1); setLoaded(false) }}
-              className={`shrink-0 h-12 w-12 rounded overflow-hidden border-2 transition-all ${
+              className={`shrink-0 h-12 w-12 rounded overflow-hidden border-2 transition-all relative ${
                 e.id === currentId ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-70'
               }`}
               title={e.name}
             >
-              <img
-                src={api.fs.raw(e.id)}
-                alt={e.name}
-                className="w-full h-full object-cover"
-                loading={Math.abs(i - idx) < 5 ? 'eager' : 'lazy'}
-              />
+              {isImageEntry(e) && (
+                <img src={api.fs.raw(e.id)} alt={e.name} className="w-full h-full object-cover"
+                  loading={Math.abs(i - idx) < 5 ? 'eager' : 'lazy'} />
+              )}
+              {isVideoEntry(e) && (
+                <>
+                  <video src={api.fs.raw(e.id)} className="w-full h-full object-cover" preload="metadata" muted />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <Play size={14} className="text-white fill-white" />
+                  </div>
+                </>
+              )}
             </button>
           ))}
         </div>
