@@ -154,3 +154,9 @@ internal/httpapi/static/
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Compiled binary
+bin/
+
+# Runtime data (DB, config)
+data/
