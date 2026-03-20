@@ -66,7 +66,9 @@ export function CollectionDetailPage() {
         </tbody>
       </table>
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); qc.invalidateQueries({ queryKey: ['collection-entries', collectionId] }) }}
+        onRenamed={() => qc.invalidateQueries({ queryKey: ['collection-entries', collectionId] })} />
     </div>
   )
 }

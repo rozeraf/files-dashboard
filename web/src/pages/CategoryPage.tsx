@@ -152,7 +152,9 @@ export function CategoryPage() {
         : <EntryTable entries={entries} onSelect={e => setDetailId(e.id)} />
       }
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); invalidateEntries() }}
+        onRenamed={invalidateEntries} />
 
       {/* Upload dialog */}
       <Dialog open={uploadOpen} onOpenChange={o => !o && setUploadOpen(false)}>

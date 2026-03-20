@@ -132,7 +132,8 @@ export function LibraryPage() {
         </DialogContent>
       </Dialog>
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => setDetailId(null)} />
     </div>
   )
 }
