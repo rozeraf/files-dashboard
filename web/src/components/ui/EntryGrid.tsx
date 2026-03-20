@@ -5,6 +5,7 @@ import { mimeToIcon, formatSize } from '@/lib/utils'
 import { useUI } from '@/stores/ui'
 import { cn } from '@/lib/utils'
 import { Lightbox } from './Lightbox'
+import { Play } from 'lucide-react'
 
 interface Props {
   entries: Entry[]
@@ -40,7 +41,7 @@ export function EntryGrid({ entries, onSelect }: Props) {
                 isSelected && 'border-primary ring-2 ring-primary/30'
               )}
             >
-              <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+              <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden relative">
                 {isImage ? (
                   <img
                     src={api.fs.raw(entry.id)}
@@ -48,6 +49,21 @@ export function EntryGrid({ entries, onSelect }: Props) {
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
+                ) : entry.mime?.startsWith('video/') ? (
+                  <>
+                    <video
+                      src={`${api.fs.raw(entry.id)}#t=0.1`}
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                      <div className="bg-black/50 rounded-full p-2">
+                        <Play size={22} className="fill-white text-white" />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <span className="text-4xl">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
                 )}

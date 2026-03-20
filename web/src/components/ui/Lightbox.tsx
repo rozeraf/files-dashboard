@@ -1,8 +1,238 @@
 // web/src/components/ui/Lightbox.tsx
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Entry, api } from '@/lib/api'
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Play } from 'lucide-react'
+import {
+  X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
+  Play, Pause, Volume2, VolumeX, Maximize, Minimize,
+  SkipBack, SkipForward,
+} from 'lucide-react'
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const isImg = (e: Entry) => e.mime?.startsWith('image/')
+const isVid = (e: Entry) => e.mime?.startsWith('video/')
+
+const fmt = (s: number) => {
+  if (!isFinite(s) || isNaN(s)) return '0:00'
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
+
+// ─── VideoPlayer ─────────────────────────────────────────────────────────────
+
+interface VideoPlayerProps {
+  src: string
+  hasPrev: boolean
+  hasNext: boolean
+  onPrev: () => void
+  onNext: () => void
+  onEnded: () => void
+}
+
+function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const onEndedRef = useRef<(() => void) | undefined>(undefined)
+  useEffect(() => { onEndedRef.current = onEnded }, [onEnded])
+
+  const [playing, setPlaying]         = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration]       = useState(0)
+  const [volume, setVolume]           = useState(1)
+  const [muted, setMuted]             = useState(false)
+  const [buffered, setBuffered]       = useState(0)
+  const [speed, setSpeed]             = useState(1)
+  const [ctrlsOn, setCtrlsOn]         = useState(true)
+  const [fullscreen, setFullscreen]   = useState(false)
+  const [flash, setFlash]             = useState<'play' | 'pause' | null>(null)
+
+  // wire video events
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const onPlay     = () => setPlaying(true)
+    const onPause    = () => setPlaying(false)
+    const onTime     = () => setCurrentTime(v.currentTime)
+    const onMeta     = () => { setDuration(v.duration); v.play() }
+    const onProg     = () => v.buffered.length && setBuffered(v.buffered.end(v.buffered.length - 1))
+    const onVol      = () => { setVolume(v.volume); setMuted(v.muted) }
+    const onEnd      = () => onEndedRef.current?.()
+    const onFulls    = () => setFullscreen(!!document.fullscreenElement)
+    v.addEventListener('play', onPlay)
+    v.addEventListener('pause', onPause)
+    v.addEventListener('timeupdate', onTime)
+    v.addEventListener('loadedmetadata', onMeta)
+    v.addEventListener('progress', onProg)
+    v.addEventListener('volumechange', onVol)
+    v.addEventListener('ended', onEnd)
+    document.addEventListener('fullscreenchange', onFulls)
+    return () => {
+      v.removeEventListener('play', onPlay)
+      v.removeEventListener('pause', onPause)
+      v.removeEventListener('timeupdate', onTime)
+      v.removeEventListener('loadedmetadata', onMeta)
+      v.removeEventListener('progress', onProg)
+      v.removeEventListener('volumechange', onVol)
+      v.removeEventListener('ended', onEnd)
+      document.removeEventListener('fullscreenchange', onFulls)
+    }
+  }, [])
+
+  // auto-hide controls
+  const bumpCtrls = useCallback(() => {
+    setCtrlsOn(true)
+    clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => setCtrlsOn(false), 3000)
+  }, [])
+
+  useEffect(() => {
+    if (!playing) { clearTimeout(hideTimer.current); setCtrlsOn(true) }
+    else bumpCtrls()
+  }, [playing, bumpCtrls])
+
+  // keyboard (video-specific: space, M)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+      if (e.key === ' ')  { e.preventDefault(); togglePlay() }
+      if (e.key === 'm' || e.key === 'M') toggleMute()
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen()
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
+
+  const togglePlay = () => {
+    const v = videoRef.current; if (!v) return
+    if (v.paused) { v.play(); showFlash('play') } else { v.pause(); showFlash('pause') }
+  }
+  const toggleMute = () => { if (videoRef.current) videoRef.current.muted = !videoRef.current.muted }
+  const toggleFullscreen = () => {
+    const container = videoRef.current?.parentElement?.parentElement
+    if (!document.fullscreenElement) container?.requestFullscreen()
+    else document.exitFullscreen()
+  }
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    if (videoRef.current) videoRef.current.currentTime = ratio * duration
+  }
+  const changeVol = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const v = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0 }
+  }
+  const cycleSpeed = () => {
+    const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
+    const next = speeds[(speeds.indexOf(speed) + 1) % speeds.length]
+    setSpeed(next)
+    if (videoRef.current) videoRef.current.playbackRate = next
+  }
+  const showFlash = (t: 'play' | 'pause') => {
+    setFlash(t); setTimeout(() => setFlash(null), 500)
+  }
+
+  const progPct = duration > 0 ? (currentTime / duration) * 100 : 0
+  const bufPct  = duration > 0 ? (buffered / duration) * 100 : 0
+  const volPct  = muted ? 0 : volume * 100
+
+  return (
+    <div
+      className={`relative w-full h-full bg-black flex items-center justify-center select-none ${ctrlsOn ? 'cursor-default' : 'cursor-none'}`}
+      onMouseMove={bumpCtrls}
+    >
+      {/* Video */}
+      <video
+        ref={videoRef}
+        key={src}
+        src={src}
+        className="max-h-full max-w-full"
+        preload="auto"
+        onClick={togglePlay}
+        style={{ cursor: 'inherit' }}
+      />
+
+      {/* Flash indicator */}
+      {flash && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-black/50 rounded-full p-5 animate-ping-once">
+            {flash === 'play' ? <Play size={40} className="fill-white text-white" /> : <Pause size={40} className="fill-white text-white" />}
+          </div>
+        </div>
+      )}
+
+      {/* Controls overlay */}
+      <div
+        className={`absolute inset-x-0 bottom-0 px-4 pt-16 pb-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 ${ctrlsOn ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Progress bar */}
+        <div
+          className="relative h-1 bg-white/25 rounded-full mb-3 cursor-pointer group/prog"
+          onClick={seek}
+          onMouseMove={bumpCtrls}
+        >
+          <div className="absolute inset-y-0 left-0 bg-white/20 rounded-full" style={{ width: `${bufPct}%` }} />
+          <div className="absolute inset-y-0 left-0 bg-white rounded-full transition-all" style={{ width: `${progPct}%` }} />
+          <div className="absolute -translate-y-1/2 top-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover/prog:opacity-100 transition-opacity pointer-events-none"
+            style={{ left: `${progPct}%` }} />
+        </div>
+
+        {/* Buttons row */}
+        <div className="flex items-center gap-2 text-white">
+          {/* Prev */}
+          <button onClick={onPrev} disabled={!hasPrev}
+            className="p-1 opacity-70 hover:opacity-100 disabled:opacity-20 transition-opacity">
+            <SkipBack size={18} />
+          </button>
+
+          {/* Play/Pause */}
+          <button onClick={togglePlay} className="p-1 hover:opacity-80 transition-opacity">
+            {playing ? <Pause size={22} className="fill-white" /> : <Play size={22} className="fill-white" />}
+          </button>
+
+          {/* Next */}
+          <button onClick={onNext} disabled={!hasNext}
+            className="p-1 opacity-70 hover:opacity-100 disabled:opacity-20 transition-opacity">
+            <SkipForward size={18} />
+          </button>
+
+          {/* Volume */}
+          <div className="flex items-center gap-1.5 group/vol">
+            <button onClick={toggleMute} className="p-1 opacity-70 hover:opacity-100 transition-opacity">
+              {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+            <div className="relative h-1 w-16 bg-white/25 rounded-full cursor-pointer overflow-visible" onClick={changeVol}>
+              <div className="absolute inset-y-0 left-0 bg-white rounded-full" style={{ width: `${volPct}%` }} />
+            </div>
+          </div>
+
+          {/* Time */}
+          <span className="text-xs font-mono text-white/70 ml-1 tabular-nums">
+            {fmt(currentTime)} / {fmt(duration)}
+          </span>
+
+          <div className="flex-1" />
+
+          {/* Speed */}
+          <button onClick={cycleSpeed}
+            className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors opacity-80 hover:opacity-100">
+            {speed === 1 ? '1×' : `${speed}×`}
+          </button>
+
+          {/* Fullscreen */}
+          <button onClick={toggleFullscreen} className="p-1 opacity-70 hover:opacity-100 transition-opacity">
+            {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Lightbox ────────────────────────────────────────────────────────────────
 
 interface Props {
   entries: Entry[]
@@ -10,151 +240,172 @@ interface Props {
   onClose: () => void
 }
 
-const isImageEntry = (e: Entry) => e.mime?.startsWith('image/')
-const isVideoEntry = (e: Entry) => e.mime?.startsWith('video/')
-
 export function Lightbox({ entries, activeId, onClose }: Props) {
   const [currentId, setCurrentId] = useState(activeId)
   const [zoom, setZoom] = useState(1)
-  const [loaded, setLoaded] = useState(false)
+  const queueRef = useRef<HTMLDivElement>(null)
 
-  const idx = entries.findIndex(e => e.id === currentId)
+  const idx   = entries.findIndex(e => e.id === currentId)
   const entry = entries[idx]
-  const isImage = entry ? isImageEntry(entry) : false
-  const isVideo = entry ? isVideoEntry(entry) : false
+  const image = entry ? isImg(entry) : false
+  const video = entry ? isVid(entry) : false
 
   const go = useCallback((dir: -1 | 1) => {
     const next = idx + dir
     if (next >= 0 && next < entries.length) {
       setCurrentId(entries[next].id)
       setZoom(1)
-      setLoaded(false)
     }
   }, [idx, entries])
 
+  // scroll active item into view in queue
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // don't steal keys from the video player controls
+    const active = queueRef.current?.querySelector('[data-active="true"]')
+    active?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [currentId])
+
+  useEffect(() => { setCurrentId(activeId); setZoom(1) }, [activeId])
+
+  // global keyboard
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLVideoElement) return
       if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft') go(-1)
-      if (e.key === 'ArrowRight') go(1)
-      if (isImage && (e.key === '+' || e.key === '=')) setZoom(z => Math.min(z + 0.5, 4))
-      if (isImage && e.key === '-') setZoom(z => Math.max(z - 0.5, 0.5))
+      if (!video) {
+        if (e.key === 'ArrowLeft')  go(-1)
+        if (e.key === 'ArrowRight') go(1)
+        if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.25, 4))
+        if (e.key === '-') setZoom(z => Math.max(z - 0.25, 0.5))
+      } else {
+        if (e.key === 'ArrowLeft')  go(-1)
+        if (e.key === 'ArrowRight') go(1)
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [go, onClose, isImage])
-
-  useEffect(() => { setCurrentId(activeId); setZoom(1); setLoaded(false) }, [activeId])
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [go, onClose, video])
 
   if (!entry) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/96 flex flex-col" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-[#0f0f0f] flex overflow-hidden">
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={e => e.stopPropagation()}>
-        <span className="text-white/50 text-sm font-mono">{idx + 1} / {entries.length}</span>
-        <span className="text-white/80 text-sm truncate max-w-md text-center">{entry.name}</span>
-        <div className="flex items-center gap-1">
-          {isImage && <>
-            <button className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              onClick={() => setZoom(z => Math.max(z - 0.5, 0.5))} title="Zoom out (−)">
-              <ZoomOut size={18} />
-            </button>
-            <span className="text-white/40 text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-            <button className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              onClick={() => setZoom(z => Math.min(z + 0.5, 4))} title="Zoom in (+)">
-              <ZoomIn size={18} />
-            </button>
-          </>}
-          <button className="ml-2 p-1.5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={onClose} title="Close (Esc)">
-            <X size={20} />
+      {/* ── Main column ── */}
+      <div className="flex flex-col flex-1 min-w-0">
+
+        {/* Top bar */}
+        <div className="flex items-center h-11 px-4 gap-3 shrink-0 border-b border-white/5">
+          <span className="text-white/40 text-sm tabular-nums">{idx + 1} / {entries.length}</span>
+          <span className="text-white/80 text-sm font-medium truncate flex-1">{entry.name}</span>
+
+          {image && (
+            <div className="flex items-center gap-1">
+              <button onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))}
+                className="p-1 text-white/40 hover:text-white transition-colors"><ZoomOut size={15} /></button>
+              <span className="text-white/30 text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(z => Math.min(z + 0.25, 4))}
+                className="p-1 text-white/40 hover:text-white transition-colors"><ZoomIn size={15} /></button>
+            </div>
+          )}
+
+          <button onClick={onClose} className="p-1 text-white/40 hover:text-white transition-colors" title="Close (Esc)">
+            <X size={18} />
           </button>
         </div>
-      </div>
 
-      {/* Media area */}
-      <div className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0" onClick={onClose}>
-
-        {idx > 0 && (
-          <button className="absolute left-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={e => { e.stopPropagation(); go(-1) }} title="Previous (←)">
-            <ChevronLeft size={36} />
-          </button>
-        )}
-
-        <div
-          className="transition-transform duration-150 ease-out"
-          style={isImage ? { transform: `scale(${zoom})`, transformOrigin: 'center' } : undefined}
-          onClick={e => e.stopPropagation()}
-        >
-          {isImage && <>
-            {!loaded && (
-              <div className="w-32 h-32 flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        {/* Media */}
+        <div className="flex-1 min-h-0 relative">
+          {image && (
+            <div className="w-full h-full flex items-center justify-center" onClick={onClose}>
+              <div
+                style={{ transform: `scale(${zoom})`, transformOrigin: 'center', transition: 'transform 0.15s ease' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <img
+                  key={currentId}
+                  src={api.fs.raw(currentId)}
+                  alt={entry.name}
+                  className="max-h-[calc(100vh-2.75rem)] max-w-full object-contain"
+                  draggable={false}
+                />
               </div>
-            )}
-            <img
-              key={currentId}
-              src={api.fs.raw(currentId)}
-              alt={entry.name}
-              onLoad={() => setLoaded(true)}
-              className="max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)] object-contain"
-              style={{ display: loaded ? 'block' : 'none' }}
-              draggable={false}
-            />
-          </>}
+              {idx > 0 && (
+                <button
+                  className="absolute left-3 p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={e => { e.stopPropagation(); go(-1) }}>
+                  <ChevronLeft size={32} />
+                </button>
+              )}
+              {idx < entries.length - 1 && (
+                <button
+                  className="absolute right-3 p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={e => { e.stopPropagation(); go(1) }}>
+                  <ChevronRight size={32} />
+                </button>
+              )}
+            </div>
+          )}
 
-          {isVideo && (
-            <video
-              key={currentId}
+          {video && (
+            <VideoPlayer
               src={api.fs.raw(currentId)}
-              controls
-              autoPlay
-              className="max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)]"
-              onLoadedData={() => setLoaded(true)}
+              hasPrev={idx > 0}
+              hasNext={idx < entries.length - 1}
+              onPrev={() => go(-1)}
+              onNext={() => go(1)}
+              onEnded={() => idx < entries.length - 1 && go(1)}
             />
           )}
         </div>
-
-        {idx < entries.length - 1 && (
-          <button className="absolute right-3 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={e => { e.stopPropagation(); go(1) }} title="Next (→)">
-            <ChevronRight size={36} />
-          </button>
-        )}
       </div>
 
-      {/* Filmstrip */}
+      {/* ── Queue sidebar ── */}
       {entries.length > 1 && (
-        <div className="h-16 shrink-0 flex gap-1 items-center px-3 pb-2 overflow-x-auto"
-          onClick={e => e.stopPropagation()}>
-          {entries.map((e, i) => (
-            <button
-              key={e.id}
-              onClick={() => { setCurrentId(e.id); setZoom(1); setLoaded(false) }}
-              className={`shrink-0 h-12 w-12 rounded overflow-hidden border-2 transition-all relative ${
-                e.id === currentId ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-70'
-              }`}
-              title={e.name}
-            >
-              {isImageEntry(e) && (
-                <img src={api.fs.raw(e.id)} alt={e.name} className="w-full h-full object-cover"
-                  loading={Math.abs(i - idx) < 5 ? 'eager' : 'lazy'} />
-              )}
-              {isVideoEntry(e) && (
-                <>
-                  <video src={api.fs.raw(e.id)} className="w-full h-full object-cover" preload="metadata" muted />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <Play size={14} className="text-white fill-white" />
+        <div className="w-72 shrink-0 border-l border-white/5 flex flex-col">
+          <p className="px-4 py-3 text-xs font-semibold text-white/30 uppercase tracking-wider shrink-0">
+            Queue
+          </p>
+          <div ref={queueRef} className="flex-1 overflow-y-auto">
+            {entries.map((e, i) => {
+              const active = e.id === currentId
+              return (
+                <button
+                  key={e.id}
+                  data-active={active}
+                  onClick={() => { setCurrentId(e.id); setZoom(1) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                    active ? 'bg-white/10' : 'hover:bg-white/5'
+                  }`}
+                >
+                  {/* Thumbnail */}
+                  <div className="w-20 h-12 rounded overflow-hidden shrink-0 bg-black/60 relative">
+                    {isImg(e) && (
+                      <img src={api.fs.raw(e.id)} alt={e.name}
+                        className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                    {isVid(e) && (
+                      <>
+                        <video src={`${api.fs.raw(e.id)}#t=0.1`} className="w-full h-full object-cover"
+                          preload="metadata" muted playsInline />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Play size={14} className="fill-white text-white drop-shadow" />
+                        </div>
+                      </>
+                    )}
                   </div>
-                </>
-              )}
-            </button>
-          ))}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs truncate ${active ? 'text-white' : 'text-white/60'}`}>{e.name}</p>
+                    <p className="text-xs text-white/25 mt-0.5">{i + 1}</p>
+                  </div>
+
+                  {/* Active indicator */}
+                  {active && <div className="w-0.5 h-7 bg-white/70 rounded-full shrink-0" />}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>,
