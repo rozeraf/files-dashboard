@@ -16,10 +16,12 @@ export function CollectionDetailPage() {
   const { data: col } = useQuery({
     queryKey: ['collection', collectionId],
     queryFn: () => api.collections.get(collectionId!),
+    enabled: !!collectionId,
   })
   const { data } = useQuery({
     queryKey: ['collection-entries', collectionId],
     queryFn: () => api.collections.entries(collectionId!),
+    enabled: !!collectionId,
   })
   const entries: Entry[] = data?.items ?? []
 
@@ -66,7 +68,9 @@ export function CollectionDetailPage() {
         </tbody>
       </table>
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); qc.invalidateQueries({ queryKey: ['collection-entries', collectionId] }) }}
+        onRenamed={() => qc.invalidateQueries({ queryKey: ['collection-entries', collectionId] })} />
     </div>
   )
 }

@@ -1,14 +1,16 @@
 // web/src/pages/UncategorizedPage.tsx
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { EntryGrid } from '@/components/ui/EntryGrid'
 import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { useState } from 'react'
 
 export function UncategorizedPage() {
+  const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
   const { data } = useQuery({ queryKey: ['uncategorized'], queryFn: () => api.uncategorized() })
   const entries = data?.items ?? []
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['uncategorized'] })
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -16,7 +18,8 @@ export function UncategorizedPage() {
         <span className="text-sm text-muted-foreground">{data?.total ?? 0} items</span>
       </div>
       <EntryGrid entries={entries} onSelect={e => setDetailId(e.id)} />
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); invalidate() }} onRenamed={invalidate} />
     </div>
   )
 }

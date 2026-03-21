@@ -78,37 +78,47 @@ func (s *Syncer) AfterRename(rootID, oldRelPath, newRelPath string) error {
 func (s *Syncer) AfterDelete(ids []string) error {
 	for _, id := range ids {
 		var rowid int64
-		s.db.QueryRow(`SELECT rowid FROM entries WHERE id=?`, id).Scan(&rowid)
+		if err := s.db.QueryRow(`SELECT rowid FROM entries WHERE id=?`, id).Scan(&rowid); err != nil {
+			continue // entry already gone
+		}
 		s.db.Exec(`DELETE FROM entries_fts WHERE rowid=?`, rowid)
-		s.db.Exec(`DELETE FROM entries WHERE id=?`, id)
+		if _, err := s.db.Exec(`DELETE FROM entries WHERE id=?`, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // UpdateFTSTags refreshes the all_tags FTS column for an entry.
 func (s *Syncer) UpdateFTSTags(entryID string) error {
-	rows, _ := s.db.Query(`SELECT t.name FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, entryID)
+	rows, err := s.db.Query(`SELECT t.name FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, entryID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 	var names []string
 	for rows.Next() {
 		var n string
 		rows.Scan(&n)
 		names = append(names, n)
 	}
-	rows.Close()
 	allTags := strings.Join(names, " ")
 	return s.ftsUpdate(entryID, "all_tags", allTags)
 }
 
 // UpdateFTSCategories refreshes the all_categories FTS column for an entry.
 func (s *Syncer) UpdateFTSCategories(entryID string) error {
-	rows, _ := s.db.Query(`SELECT c.name FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, entryID)
+	rows, err := s.db.Query(`SELECT c.name FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, entryID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 	var names []string
 	for rows.Next() {
 		var n string
 		rows.Scan(&n)
 		names = append(names, n)
 	}
-	rows.Close()
 	allCats := strings.Join(names, " ")
 	return s.ftsUpdate(entryID, "all_categories", allCats)
 }
@@ -156,8 +166,10 @@ func (s *Syncer) ftsUpdate(entryID, col, value string) error {
 	}
 	// FTS5 contentless: delete + re-insert
 	var name, relPath, ext, allTags, allCats string
-	s.db.QueryRow(`SELECT name, rel_path, ext FROM entries WHERE id=?`, entryID).Scan(&name, &relPath, &ext)
-	// get current FTS values for other columns
+	if err := s.db.QueryRow(`SELECT name, rel_path, ext FROM entries WHERE id=?`, entryID).Scan(&name, &relPath, &ext); err != nil {
+		return err
+	}
+	// get current FTS values for other columns (may not exist yet, that's ok)
 	s.db.QueryRow(`SELECT all_tags, all_categories FROM entries_fts WHERE rowid=?`, rowid).Scan(&allTags, &allCats)
 	switch col {
 	case "all_tags":
@@ -165,33 +177,41 @@ func (s *Syncer) ftsUpdate(entryID, col, value string) error {
 	case "all_categories":
 		allCats = value
 	}
-	s.db.Exec(`DELETE FROM entries_fts WHERE rowid=?`, rowid)
-	s.db.Exec(`INSERT INTO entries_fts(rowid,name,rel_path,ext,all_tags,all_categories) VALUES(?,?,?,?,?,?)`,
+	if _, err := s.db.Exec(`DELETE FROM entries_fts WHERE rowid=?`, rowid); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`INSERT INTO entries_fts(rowid,name,rel_path,ext,all_tags,all_categories) VALUES(?,?,?,?,?,?)`,
 		rowid, name, relPath, ext, allTags, allCats)
-	return nil
+	return err
 }
 
 func (s *Syncer) aggregateTags(tx *sql.Tx, entryID string) string {
-	rows, _ := tx.Query(`SELECT t.name FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, entryID)
+	rows, err := tx.Query(`SELECT t.name FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, entryID)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
 	var names []string
 	for rows.Next() {
 		var n string
 		rows.Scan(&n)
 		names = append(names, n)
 	}
-	rows.Close()
 	return strings.Join(names, " ")
 }
 
 func (s *Syncer) aggregateCategories(tx *sql.Tx, entryID string) string {
-	rows, _ := tx.Query(`SELECT c.name FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, entryID)
+	rows, err := tx.Query(`SELECT c.name FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, entryID)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
 	var names []string
 	for rows.Next() {
 		var n string
 		rows.Scan(&n)
 		names = append(names, n)
 	}
-	rows.Close()
 	return strings.Join(names, " ")
 }
 

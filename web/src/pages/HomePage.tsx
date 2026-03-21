@@ -1,5 +1,5 @@
 // web/src/pages/HomePage.tsx
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
 import { EntryGrid } from '@/components/ui/EntryGrid'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
 
   const { data: libraries } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
@@ -17,6 +18,10 @@ export function HomePage() {
   const { data: favorites } = useQuery({ queryKey: ['favorites'], queryFn: () => api.favorites.list(10) })
 
   const startScan = () => api.scan.start().then(() => {})
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['recent'] })
+    qc.invalidateQueries({ queryKey: ['favorites'] })
+  }
 
   return (
     <div className="space-y-8">
@@ -57,7 +62,8 @@ export function HomePage() {
         </section>
       )}
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); invalidate() }} onRenamed={invalidate} />
     </div>
   )
 }

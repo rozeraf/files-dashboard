@@ -37,10 +37,14 @@ func (s *Store) CreateTag(name, color string) (model.Tag, error) {
 
 func (s *Store) UpdateTag(id string, name *string, color string) error {
 	if name != nil {
-		s.db.Exec(`UPDATE tags SET name=? WHERE id=?`, *name, id)
+		if _, err := s.db.Exec(`UPDATE tags SET name=? WHERE id=?`, *name, id); err != nil {
+			return err
+		}
 	}
 	if color != "" {
-		s.db.Exec(`UPDATE tags SET color=? WHERE id=?`, color, id)
+		if _, err := s.db.Exec(`UPDATE tags SET color=? WHERE id=?`, color, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -57,10 +61,14 @@ func (s *Store) AssignEntryTags(entryID string, add, remove []string) error {
 	}
 	defer tx.Rollback()
 	for _, tid := range remove {
-		tx.Exec(`DELETE FROM entry_tags WHERE entry_id=? AND tag_id=?`, entryID, tid)
+		if _, err := tx.Exec(`DELETE FROM entry_tags WHERE entry_id=? AND tag_id=?`, entryID, tid); err != nil {
+			return err
+		}
 	}
 	for _, tid := range add {
-		tx.Exec(`INSERT OR IGNORE INTO entry_tags(entry_id,tag_id) VALUES(?,?)`, entryID, tid)
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO entry_tags(entry_id,tag_id) VALUES(?,?)`, entryID, tid); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

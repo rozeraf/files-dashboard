@@ -1,6 +1,6 @@
 // web/src/pages/SearchPage.tsx
 import { useSearchParams } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { EntryGrid } from '@/components/ui/EntryGrid'
 import { EntryTable } from '@/components/ui/EntryTable'
@@ -13,6 +13,7 @@ import { LayoutGrid, List, Bookmark } from 'lucide-react'
 
 export function SearchPage() {
   const [searchParams] = useSearchParams()
+  const qc = useQueryClient()
   const [view, setView] = useState<'grid' | 'table'>('grid')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [saveOpen, setSaveOpen] = useState(false)
@@ -62,7 +63,9 @@ export function SearchPage() {
         : <EntryTable entries={data} onSelect={e => setDetailId(e.id)} />
       }
 
-      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)} />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); qc.invalidateQueries({ queryKey: ['search'] }) }}
+        onRenamed={() => qc.invalidateQueries({ queryKey: ['search'] })} />
 
       <Dialog open={saveOpen} onOpenChange={o => !o && setSaveOpen(false)}>
         <DialogContent>

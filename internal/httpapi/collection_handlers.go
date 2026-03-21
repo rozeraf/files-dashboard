@@ -50,7 +50,10 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	h.store.UpdateCollection(chi.URLParam(r, "id"), req.Name, req.Description)
+	if err := h.store.UpdateCollection(chi.URLParam(r, "id"), req.Name, req.Description); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 
@@ -79,8 +82,11 @@ func (h *Handler) addToCollection(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "entryId required")
 		return
 	}
-	h.store.AddToCollection(chi.URLParam(r, "id"), req.EntryID)
-	w.WriteHeader(200)
+	if err := h.store.AddToCollection(chi.URLParam(r, "id"), req.EntryID); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	w.WriteHeader(204)
 }
 
 func (h *Handler) removeFromCollection(w http.ResponseWriter, r *http.Request) {

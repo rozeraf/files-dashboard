@@ -70,10 +70,14 @@ func (s *Store) UpdateLibrary(id string, fn func(*LibraryUpdate)) error {
 		}
 	}
 	if u.Icon != nil {
-		s.db.Exec(`UPDATE libraries SET icon=? WHERE id=?`, *u.Icon, id)
+		if _, err := s.db.Exec(`UPDATE libraries SET icon=? WHERE id=?`, *u.Icon, id); err != nil {
+			return err
+		}
 	}
 	if u.Position != nil {
-		s.db.Exec(`UPDATE libraries SET position=? WHERE id=?`, *u.Position, id)
+		if _, err := s.db.Exec(`UPDATE libraries SET position=? WHERE id=?`, *u.Position, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -161,13 +165,19 @@ func (s *Store) CreateCategory(libraryID string, parentID *string, name string) 
 
 func (s *Store) UpdateCategory(id string, name *string, parentID *string, position *int) error {
 	if name != nil {
-		s.db.Exec(`UPDATE categories SET name=? WHERE id=?`, *name, id)
+		if _, err := s.db.Exec(`UPDATE categories SET name=? WHERE id=?`, *name, id); err != nil {
+			return err
+		}
 	}
 	if parentID != nil {
-		s.db.Exec(`UPDATE categories SET parent_id=? WHERE id=?`, *parentID, id)
+		if _, err := s.db.Exec(`UPDATE categories SET parent_id=? WHERE id=?`, *parentID, id); err != nil {
+			return err
+		}
 	}
 	if position != nil {
-		s.db.Exec(`UPDATE categories SET position=? WHERE id=?`, *position, id)
+		if _, err := s.db.Exec(`UPDATE categories SET position=? WHERE id=?`, *position, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -188,6 +198,25 @@ func (s *Store) GetCategory(id string) (model.Category, error) {
 	return c, err
 }
 
+func (s *Store) ListSubcategories(parentID string) ([]model.Category, error) {
+	rows, err := s.db.Query(`SELECT id,library_id,parent_id,name,slug,position,created_at FROM categories WHERE parent_id=? ORDER BY position`, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cats []model.Category
+	for rows.Next() {
+		var c model.Category
+		var pid sql.NullString
+		rows.Scan(&c.ID, &c.LibraryID, &pid, &c.Name, &c.Slug, &c.Position, &c.CreatedAt)
+		if pid.Valid {
+			c.ParentID = &pid.String
+		}
+		cats = append(cats, c)
+	}
+	return cats, rows.Err()
+}
+
 // AssignEntryCategories performs a delta assignment (add + remove).
 func (s *Store) AssignEntryCategories(entryID string, add, remove []string) error {
 	tx, err := s.db.Begin()
@@ -196,10 +225,14 @@ func (s *Store) AssignEntryCategories(entryID string, add, remove []string) erro
 	}
 	defer tx.Rollback()
 	for _, cid := range remove {
-		tx.Exec(`DELETE FROM entry_categories WHERE entry_id=? AND category_id=?`, entryID, cid)
+		if _, err := tx.Exec(`DELETE FROM entry_categories WHERE entry_id=? AND category_id=?`, entryID, cid); err != nil {
+			return err
+		}
 	}
 	for _, cid := range add {
-		tx.Exec(`INSERT OR IGNORE INTO entry_categories(entry_id,category_id) VALUES(?,?)`, entryID, cid)
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO entry_categories(entry_id,category_id) VALUES(?,?)`, entryID, cid); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

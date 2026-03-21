@@ -52,11 +52,14 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	h.store.UpdateLibrary(id, func(u *organize.LibraryUpdate) {
+	if err := h.store.UpdateLibrary(id, func(u *organize.LibraryUpdate) {
 		u.Name = req.Name
 		u.Icon = req.Icon
 		u.Position = req.Position
-	})
+	}); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 
@@ -109,13 +112,31 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	h.store.UpdateCategory(chi.URLParam(r, "id"), req.Name, req.ParentID, req.Position)
+	if err := h.store.UpdateCategory(chi.URLParam(r, "id"), req.Name, req.ParentID, req.Position); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 
 func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
-	h.store.DeleteCategory(chi.URLParam(r, "id"))
+	if err := h.store.DeleteCategory(chi.URLParam(r, "id")); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
+}
+
+func (h *Handler) listSubcategories(w http.ResponseWriter, r *http.Request) {
+	cats, err := h.store.ListSubcategories(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if cats == nil {
+		cats = []model.Category{}
+	}
+	writeJSON(w, 200, cats)
 }
 
 func (h *Handler) categoryEntries(w http.ResponseWriter, r *http.Request) {

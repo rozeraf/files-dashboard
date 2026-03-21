@@ -92,11 +92,19 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
     else bumpCtrls()
   }, [playing, bumpCtrls])
 
-  // keyboard (video-specific: space, M)
+  const seekBy = (delta: number) => {
+    const v = videoRef.current; if (!v) return
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + delta))
+    bumpCtrls()
+  }
+
+  // keyboard (video-specific)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
-      if (e.key === ' ')  { e.preventDefault(); togglePlay() }
+      if (e.key === ' ')           { e.preventDefault(); togglePlay() }
+      if (e.key === 'ArrowLeft')   { e.preventDefault(); seekBy(-5) }
+      if (e.key === 'ArrowRight')  { e.preventDefault(); seekBy(5) }
       if (e.key === 'm' || e.key === 'M') toggleMute()
       if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
@@ -168,16 +176,22 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
         className={`absolute inset-x-0 bottom-0 px-4 pt-16 pb-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 ${ctrlsOn ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={e => e.stopPropagation()}
       >
-        {/* Progress bar */}
+        {/* Progress bar — tall hit area, thin visual track */}
         <div
-          className="relative h-1 bg-white/25 rounded-full mb-3 cursor-pointer group/prog"
+          className="relative flex items-center h-5 mb-1 cursor-pointer group/prog"
           onClick={seek}
           onMouseMove={bumpCtrls}
         >
-          <div className="absolute inset-y-0 left-0 bg-white/20 rounded-full" style={{ width: `${bufPct}%` }} />
-          <div className="absolute inset-y-0 left-0 bg-white rounded-full transition-all" style={{ width: `${progPct}%` }} />
-          <div className="absolute -translate-y-1/2 top-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover/prog:opacity-100 transition-opacity pointer-events-none"
-            style={{ left: `${progPct}%` }} />
+          {/* Track */}
+          <div className="absolute inset-x-0 h-1 group-hover/prog:h-1.5 rounded-full bg-white/25 transition-all duration-150">
+            <div className="absolute inset-y-0 left-0 bg-white/25 rounded-full" style={{ width: `${bufPct}%` }} />
+            <div className="absolute inset-y-0 left-0 bg-white rounded-full" style={{ width: `${progPct}%` }} />
+          </div>
+          {/* Thumb */}
+          <div
+            className="absolute -translate-x-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover/prog:opacity-100 transition-opacity pointer-events-none"
+            style={{ left: `${progPct}%` }}
+          />
         </div>
 
         {/* Buttons row */}
@@ -276,10 +290,8 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
         if (e.key === 'ArrowRight') go(1)
         if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.25, 4))
         if (e.key === '-') setZoom(z => Math.max(z - 0.25, 0.5))
-      } else {
-        if (e.key === 'ArrowLeft')  go(-1)
-        if (e.key === 'ArrowRight') go(1)
       }
+      // video: ArrowLeft/Right handled by VideoPlayer (seek ±5s)
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)

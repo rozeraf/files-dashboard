@@ -4,6 +4,7 @@ package httpapi
 import (
 	"database/sql"
 	"net/http"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,6 +20,7 @@ type Handler struct {
 	syncer  *index.Syncer
 	store   *organize.Store
 	jobs    *JobStore
+	scanMu  sync.Mutex
 }
 
 func NewHandler(cfg *config.Config, db *sql.DB) *Handler {
@@ -69,6 +71,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Patch("/categories/{id}", h.updateCategory)
 		r.Delete("/categories/{id}", h.deleteCategory)
 		r.Get("/categories/{id}/entries", h.categoryEntries)
+		r.Get("/categories/{id}/subcategories", h.listSubcategories)
 
 		// Entry logical ops
 		r.Post("/entries/{id}/categories", h.assignCategories)

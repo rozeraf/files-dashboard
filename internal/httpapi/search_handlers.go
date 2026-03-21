@@ -64,38 +64,45 @@ func (h *Handler) entryDetail(w http.ResponseWriter, r *http.Request) {
 	detail := model.EntryDetail{Entry: e}
 
 	// categories
-	catRows, _ := h.db.Query(`SELECT c.id,c.library_id,c.parent_id,c.name,c.slug,c.position,c.created_at
-		FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, id)
-	for catRows.Next() {
-		var c model.Category
-		catRows.Scan(&c.ID, &c.LibraryID, &c.ParentID, &c.Name, &c.Slug, &c.Position, &c.CreatedAt)
-		detail.Categories = append(detail.Categories, c)
+	if catRows, err := h.db.Query(`SELECT c.id,c.library_id,c.parent_id,c.name,c.slug,c.position,c.created_at
+		FROM categories c JOIN entry_categories ec ON ec.category_id=c.id WHERE ec.entry_id=?`, id); err == nil {
+		defer catRows.Close()
+		for catRows.Next() {
+			var c model.Category
+			var pid sql.NullString
+			catRows.Scan(&c.ID, &c.LibraryID, &pid, &c.Name, &c.Slug, &c.Position, &c.CreatedAt)
+			if pid.Valid {
+				c.ParentID = &pid.String
+			}
+			detail.Categories = append(detail.Categories, c)
+		}
 	}
-	catRows.Close()
 	if detail.Categories == nil {
 		detail.Categories = []model.Category{}
 	}
 
 	// tags
-	tagRows, _ := h.db.Query(`SELECT t.id,t.name,t.color FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, id)
-	for tagRows.Next() {
-		var t model.Tag
-		tagRows.Scan(&t.ID, &t.Name, &t.Color)
-		detail.Tags = append(detail.Tags, t)
+	if tagRows, err := h.db.Query(`SELECT t.id,t.name,t.color FROM tags t JOIN entry_tags et ON et.tag_id=t.id WHERE et.entry_id=?`, id); err == nil {
+		defer tagRows.Close()
+		for tagRows.Next() {
+			var t model.Tag
+			tagRows.Scan(&t.ID, &t.Name, &t.Color)
+			detail.Tags = append(detail.Tags, t)
+		}
 	}
-	tagRows.Close()
 	if detail.Tags == nil {
 		detail.Tags = []model.Tag{}
 	}
 
 	// collections
-	colRows, _ := h.db.Query(`SELECT c.id,c.name FROM collections c JOIN collection_entries ce ON ce.collection_id=c.id WHERE ce.entry_id=?`, id)
-	for colRows.Next() {
-		var c model.CollectionRef
-		colRows.Scan(&c.ID, &c.Name)
-		detail.Collections = append(detail.Collections, c)
+	if colRows, err := h.db.Query(`SELECT c.id,c.name FROM collections c JOIN collection_entries ce ON ce.collection_id=c.id WHERE ce.entry_id=?`, id); err == nil {
+		defer colRows.Close()
+		for colRows.Next() {
+			var c model.CollectionRef
+			colRows.Scan(&c.ID, &c.Name)
+			detail.Collections = append(detail.Collections, c)
+		}
 	}
-	colRows.Close()
 	if detail.Collections == nil {
 		detail.Collections = []model.CollectionRef{}
 	}

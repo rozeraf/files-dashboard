@@ -46,11 +46,17 @@ func (h *Handler) updateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) startScan(w http.ResponseWriter, r *http.Request) {
+	if !h.scanMu.TryLock() {
+		writeError(w, 409, "scan already in progress")
+		return
+	}
+
 	jobID := uuid.New().String()
 	job := &model.ScanJobResponse{JobID: jobID, Status: "running"}
 	h.jobs.Set(jobID, job)
 
 	go func() {
+		defer h.scanMu.Unlock()
 		for _, rc := range h.cfg.Roots {
 			stats, err := h.scanner.ScanRoot(rc.ID, rc.Path)
 			if err != nil {
@@ -71,7 +77,7 @@ func (h *Handler) startScan(w http.ResponseWriter, r *http.Request) {
 		job.Unlock()
 	}()
 
-	writeJSON(w, 202, job)
+	writeJSON(w, 202, map[string]any{"jobId": jobID, "status": "running", "scanned": 0, "added": 0, "removed": 0})
 }
 
 func (h *Handler) scanStatus(w http.ResponseWriter, r *http.Request) {

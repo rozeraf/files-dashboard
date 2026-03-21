@@ -24,8 +24,11 @@ func (h *Handler) listFavorites(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) addFavorite(w http.ResponseWriter, r *http.Request) {
-	h.store.AddFavorite(chi.URLParam(r, "entryId"))
-	w.WriteHeader(200)
+	if err := h.store.AddFavorite(chi.URLParam(r, "entryId")); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	w.WriteHeader(204)
 }
 
 func (h *Handler) removeFavorite(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +111,10 @@ func (h *Handler) updateSavedView(w http.ResponseWriter, r *http.Request) {
 		s := string(b)
 		filtersJSON = &s
 	}
-	h.store.UpdateSavedView(chi.URLParam(r, "id"), req.Name, filtersJSON)
+	if err := h.store.UpdateSavedView(chi.URLParam(r, "id"), req.Name, filtersJSON); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 

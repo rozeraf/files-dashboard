@@ -118,6 +118,27 @@ func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Populate IDs from SQLite by matching (root_id, parent_rel_path)
+	if len(entries) > 0 {
+		idByRelPath := make(map[string]string, len(entries))
+		rows, qErr := h.db.Query(`SELECT id, rel_path FROM entries WHERE root_id=? AND parent_rel_path=?`, rootID, relPath)
+		if qErr == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, rp string
+				rows.Scan(&id, &rp)
+				idByRelPath[rp] = id
+			}
+		}
+		for i := range entries {
+			if id, ok := idByRelPath[entries[i].RelPath]; ok {
+				entries[i].ID = id
+				entries[i].RootID = rootID
+			}
+		}
+	}
+
 	writeJSON(w, 200, entries)
 }
 
@@ -154,8 +175,11 @@ func (h *Handler) renameEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var rootID, relPath, rootPath string
-	h.db.QueryRow(`SELECT e.root_id, e.rel_path, r.path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
-		Scan(&rootID, &relPath, &rootPath)
+	if err := h.db.QueryRow(`SELECT e.root_id, e.rel_path, r.path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
+		Scan(&rootID, &relPath, &rootPath); err != nil {
+		writeError(w, 404, "entry not found")
+		return
+	}
 
 	if err := fsops.Rename(rootPath, relPath, req.Name); err != nil {
 		writeError(w, 500, err.Error())
@@ -173,12 +197,17 @@ func (h *Handler) moveEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var destRootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.DestRootID).Scan(&destRootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.DestRootID).Scan(&destRootPath); err != nil {
+		writeError(w, 404, "destination root not found")
+		return
+	}
 
 	for _, id := range req.IDs {
 		var srcRootPath, relPath string
-		h.db.QueryRow(`SELECT r.path, e.rel_path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
-			Scan(&srcRootPath, &relPath)
+		if err := h.db.QueryRow(`SELECT r.path, e.rel_path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
+			Scan(&srcRootPath, &relPath); err != nil {
+			continue
+		}
 		if err := fsops.Move(srcRootPath, relPath, destRootPath, req.DestRelPath); err != nil {
 			writeError(w, 500, err.Error())
 			return
@@ -201,7 +230,10 @@ func (h *Handler) deleteEntries(w http.ResponseWriter, r *http.Request) {
 			Scan(&rootPath, &relPath); err != nil {
 			continue
 		}
-		fsops.Delete(rootPath, relPath) // nolint - best effort
+		if err := fsops.Delete(rootPath, relPath); err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
 		h.syncer.AfterDelete([]string{id})
 	}
 	w.WriteHeader(204)
@@ -214,7 +246,10 @@ func (h *Handler) createDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.RootID).Scan(&rootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.RootID).Scan(&rootPath); err != nil {
+		writeError(w, 404, "root not found")
+		return
+	}
 
 	relPath := filepath.Join(req.RelPath, req.Name)
 	if err := fsops.Mkdir(rootPath, relPath); err != nil {
@@ -223,8 +258,10 @@ func (h *Handler) createDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := model.Entry{RelPath: relPath, ParentRelPath: req.RelPath, Name: req.Name, Kind: "dir", Mtime: time.Now().Unix()}
-	h.syncer.AddEntry(req.RootID, e)
-	w.WriteHeader(201)
+	id, _ := h.syncer.AddEntry(req.RootID, e)
+	e.ID = id
+	e.RootID = req.RootID
+	writeJSON(w, 201, e)
 }
 
 func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
@@ -240,7 +277,10 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	var rootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, rootID).Scan(&rootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, rootID).Scan(&rootPath); err != nil {
+		writeError(w, 404, "root not found")
+		return
+	}
 
 	savedRelPath, err := fsops.SaveUpload(rootPath, relPath, header.Filename, file)
 	if err != nil {
@@ -251,13 +291,18 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	entries, _ := fsops.ListDir(rootPath, relPath)
 	for _, e := range entries {
 		if e.RelPath == savedRelPath {
-			id, _ := h.syncer.AddEntry(rootID, e)
+			id, err := h.syncer.AddEntry(rootID, e)
+			if err != nil || id == "" {
+				// entry may already exist (e.g. concurrent scan) — look it up
+				h.db.QueryRow(`SELECT id FROM entries WHERE root_id=? AND rel_path=?`, rootID, e.RelPath).Scan(&id)
+			}
 			e.ID = id
+			e.RootID = rootID
 			writeJSON(w, 201, e)
 			return
 		}
 	}
-	w.WriteHeader(201)
+	writeJSON(w, 201, model.Entry{RootID: rootID, RelPath: savedRelPath})
 }
 
 func isDir(path string) bool {
