@@ -28,7 +28,6 @@ export function SelectionToolbar() {
 
   const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list, enabled: moveOpen })
   const { data: allTags = [] } = useQuery({ queryKey: ['tags'], queryFn: api.tags.list, enabled: tagOpen })
-  const { data: libraries = [] } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list, enabled: catOpen })
   const libCatQueries = useQuery({
     queryKey: ['all-categories-flat'],
     queryFn: async () => {
@@ -87,33 +86,33 @@ export function SelectionToolbar() {
   return (
     <>
       <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-card border shadow-2xl transition-all duration-300 ${
+        className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 rounded-2xl bg-card border shadow-2xl transition-all duration-300 max-w-[calc(100vw-2rem)] ${
           count > 0 ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'
         }`}
       >
-        <span className="text-sm font-semibold tabular-nums pr-1">{count} selected</span>
-        <div className="w-px h-5 bg-border" />
+        <span className="text-xs sm:text-sm font-semibold tabular-nums pr-0.5 sm:pr-1 whitespace-nowrap">{count}</span>
+        <div className="w-px h-5 bg-border shrink-0" />
 
-        <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={openMove}>
-          <FolderInput size={13} />Move
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openMove}>
+          <FolderInput size={13} /><span className="hidden sm:inline">Move</span>
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={openTags}>
-          <Tag size={13} />Tag
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openTags}>
+          <Tag size={13} /><span className="hidden sm:inline">Tag</span>
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={openCats}>
-          <Library size={13} />Categorize
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openCats}>
+          <Library size={13} /><span className="hidden sm:inline">Categorize</span>
         </Button>
 
-        <div className="w-px h-5 bg-border" />
+        <div className="w-px h-5 bg-border shrink-0" />
         <Button
           variant="ghost" size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 h-8 text-xs"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3"
           onClick={() => setConfirmOpen(true)}
         >
-          <Trash2 size={13} />Delete
+          <Trash2 size={13} /><span className="hidden sm:inline">Delete</span>
         </Button>
-        <div className="w-px h-5 bg-border" />
-        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={clearSelection}>
+        <div className="w-px h-5 bg-border shrink-0" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full shrink-0" onClick={clearSelection}>
           <X size={13} />
         </Button>
       </div>

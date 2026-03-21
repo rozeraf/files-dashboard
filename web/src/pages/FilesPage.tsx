@@ -79,11 +79,11 @@ export function FilesPage() {
       {rootId && (
         <>
           {/* Toolbar + Breadcrumb */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <button onClick={() => setPath('')} className="hover:text-foreground font-medium transition-colors">root</button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto">
+              <button onClick={() => setPath('')} className="hover:text-foreground font-medium transition-colors shrink-0">root</button>
               {breadcrumbs.map((seg, i, arr) => (
-                <span key={i} className="flex items-center gap-1.5">
+                <span key={i} className="flex items-center gap-1.5 shrink-0">
                   <ChevronRight size={11} className="opacity-40" />
                   <button
                     onClick={() => setPath(arr.slice(0, i + 1).join('/'))}
@@ -92,12 +92,12 @@ export function FilesPage() {
                 </span>
               ))}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={13} />Upload
+                <Upload size={13} /><span className="hidden xs:inline">Upload</span>
               </Button>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setMkdirOpen(true)}>
-                <FolderPlus size={13} />New Folder
+                <FolderPlus size={13} /><span className="hidden xs:inline">New Folder</span>
               </Button>
               <input
                 ref={fileInputRef}
@@ -119,10 +119,10 @@ export function FilesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/40 text-left text-muted-foreground">
-                    <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Size</th>
-                    <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Modified</th>
-                    <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-20"></th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Name</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Size</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Modified</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -132,15 +132,15 @@ export function FilesPage() {
                       className="border-t hover:bg-muted/30 transition-colors group"
                     >
                       <td
-                        className="px-4 py-2.5 flex items-center gap-2.5 cursor-pointer"
+                        className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-2.5 cursor-pointer"
                         onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
                       >
-                        <span className="text-base">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
-                        <span className="truncate max-w-xs font-medium">{entry.name}</span>
+                        <span className="text-base shrink-0">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
+                        <span className="truncate font-medium text-xs sm:text-sm">{entry.name}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground tabular-nums">{formatSize(entry.size)}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(entry.mtime)}</td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 sm:px-4 py-2.5 text-muted-foreground tabular-nums hidden sm:table-cell">{formatSize(entry.size)}</td>
+                      <td className="px-3 sm:px-4 py-2.5 text-muted-foreground hidden md:table-cell">{formatDate(entry.mtime)}</td>
+                      <td className="px-3 sm:px-4 py-2.5">
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
                           <Button variant="ghost" size="icon" className="h-7 w-7" title="Rename"
                             onClick={e => { e.stopPropagation(); openRename(entry) }}>

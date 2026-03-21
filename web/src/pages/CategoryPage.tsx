@@ -153,15 +153,15 @@ export function CategoryPage() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)} className="gap-1.5">
-            <FolderPlus size={14} />Subcategory
+            <FolderPlus size={14} /><span className="hidden sm:inline">Subcategory</span>
           </Button>
           <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0} className="gap-1.5">
-            <Upload size={14} />Upload
+            <Upload size={14} /><span className="hidden sm:inline">Upload</span>
           </Button>
           <Button variant="outline" size="sm" onClick={openCreate} disabled={roots.length === 0} className="gap-1.5">
-            <FilePlus size={14} />Create
+            <FilePlus size={14} /><span className="hidden sm:inline">Create</span>
           </Button>
           <div className="flex gap-1 border-l pl-2 ml-1">
             <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('grid')}><LayoutGrid size={15} /></Button>
@@ -172,7 +172,7 @@ export function CategoryPage() {
 
       {/* Subcategories */}
       {subcategories.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {subcategories.map(sub => (
             <button
               key={sub.id}

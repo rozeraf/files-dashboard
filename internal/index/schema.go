@@ -118,13 +118,17 @@ func migrate(db *sql.DB) error {
 func ResetDB(db *sql.DB) error {
 	tables := []string{
 		"collection_entries", "entry_categories", "entry_tags",
-		"favorites", "entries_fts", "entries", "categories",
+		"favorites", "entries", "categories",
 		"libraries", "collections", "saved_views", "tags",
 	}
 	for _, t := range tables {
 		if _, err := db.Exec("DELETE FROM " + t); err != nil {
 			return err
 		}
+	}
+	// FTS5 contentless tables require a special command to clear all data.
+	if _, err := db.Exec("INSERT INTO entries_fts(entries_fts) VALUES('delete-all')"); err != nil {
+		return err
 	}
 	return nil
 }

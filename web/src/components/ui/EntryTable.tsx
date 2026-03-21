@@ -37,10 +37,10 @@ export function EntryTable({ entries, onSelect }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-left text-muted-foreground">
-              <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Name</th>
-              <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Size</th>
-              <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Modified</th>
-              <th className="px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Type</th>
+              <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Name</th>
+              <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden xs:table-cell">Size</th>
+              <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Modified</th>
+              <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Type</th>
             </tr>
           </thead>
           <tbody>
@@ -53,13 +53,13 @@ export function EntryTable({ entries, onSelect }: Props) {
                   selectedIds.has(entry.id) ? 'bg-primary/5' : 'hover:bg-muted/30'
                 )}
               >
-                <td className="px-4 py-2.5 flex items-center gap-2.5">
-                  <span className="text-base">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
-                  <span className="truncate max-w-xs font-medium">{entry.name}</span>
+                <td className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-2.5">
+                  <span className="text-base shrink-0">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
+                  <span className="truncate font-medium text-xs sm:text-sm">{entry.name}</span>
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground tabular-nums">{formatSize(entry.size)}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{formatDate(entry.mtime)}</td>
-                <td className="px-4 py-2.5 text-muted-foreground font-mono text-xs">{entry.ext || entry.kind}</td>
+                <td className="px-3 sm:px-4 py-2.5 text-muted-foreground tabular-nums hidden xs:table-cell">{formatSize(entry.size)}</td>
+                <td className="px-3 sm:px-4 py-2.5 text-muted-foreground hidden md:table-cell">{formatDate(entry.mtime)}</td>
+                <td className="px-3 sm:px-4 py-2.5 text-muted-foreground font-mono text-xs hidden lg:table-cell">{entry.ext || entry.kind}</td>
               </tr>
             ))}
           </tbody>

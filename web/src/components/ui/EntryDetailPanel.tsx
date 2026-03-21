@@ -165,7 +165,7 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   return (
     <>
       <Sheet open={!!entryId} onOpenChange={o => !o && onClose()}>
-        <SheetContent className="w-[400px] overflow-y-auto">
+        <SheetContent className="w-full sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="truncate text-base">{data.name}</SheetTitle>
           </SheetHeader>

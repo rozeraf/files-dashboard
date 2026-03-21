@@ -134,20 +134,20 @@ export function SearchPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
-          Search {params.q && <span className="text-muted-foreground font-normal">"{params.q}"</span>}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">
+          Search {params.q && <span className="text-muted-foreground font-normal text-lg">"{params.q}"</span>}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {hasAnyParams && !saved && (
-            <Button variant="outline" size="sm" onClick={() => { setSaveName(''); setSaveOpen(true) }}>
-              <Bookmark size={14} className="mr-1.5" />Save View
+            <Button variant="outline" size="sm" onClick={() => { setSaveName(''); setSaveOpen(true) }} className="gap-1.5">
+              <Bookmark size={14} />Save View
             </Button>
           )}
           {saved && <span className="text-xs text-muted-foreground self-center">Saved</span>}
           <div className="flex gap-1">
-            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" onClick={() => setView('grid')}><LayoutGrid size={16} /></Button>
-            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" onClick={() => setView('table')}><List size={16} /></Button>
+            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('grid')}><LayoutGrid size={15} /></Button>
+            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('table')}><List size={15} /></Button>
           </div>
         </div>
       </div>

@@ -1,17 +1,25 @@
 // web/src/components/layout/Sidebar.tsx
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useUI } from '@/stores/ui'
 import {
   Home, Library, FolderOpen, Tag, Clock, Heart,
-  HelpCircle, Files, Settings, ChevronRight, Search
+  HelpCircle, Files, Settings, ChevronRight, Search, X
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export function Sidebar() {
+  const { sidebarOpen, setSidebarOpen } = useUI()
+  const location = useLocation()
   const { data: libraries } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
   const [expandedLibs, setExpandedLibs] = useState<Set<string>>(new Set())
+
+  // Close sidebar on route change (mobile only)
+  useEffect(() => {
+    if (window.innerWidth < 768) setSidebarOpen(false)
+  }, [location.pathname, setSidebarOpen])
 
   const toggle = (id: string) => setExpandedLibs(p => {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n
@@ -32,9 +40,20 @@ export function Sidebar() {
   )
 
   return (
-    <aside className="w-60 shrink-0 h-screen overflow-y-auto border-r border-sidebar-border bg-sidebar p-3 flex flex-col gap-0.5">
-      <div className="px-3 py-3 mb-1">
+    <aside className={cn(
+      'fixed inset-y-0 left-0 z-50 w-64 sm:w-60 shrink-0 h-screen overflow-y-auto border-r border-sidebar-border bg-sidebar p-3 flex flex-col gap-0.5',
+      'transition-transform duration-200 ease-out',
+      'md:relative md:z-auto md:translate-x-0',
+      sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+    )}>
+      <div className="px-3 py-3 mb-1 flex items-center justify-between">
         <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground">Files Dashboard</h1>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="md:hidden p-1 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {navItem('/home', <Home size={15} />, 'Home')}
