@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useState } from 'react'
-import { Trash2, Plus, RefreshCw, Pencil } from 'lucide-react'
+import { Trash2, Plus, RefreshCw, Pencil, AlertTriangle } from 'lucide-react'
 
 export function SettingsPage() {
   const qc = useQueryClient()
@@ -33,6 +33,9 @@ export function SettingsPage() {
   // App config
   const [editAppName, setEditAppName] = useState('')
   const [editAppNameOpen, setEditAppNameOpen] = useState(false)
+
+  // Reset
+  const [resetOpen, setResetOpen] = useState(false)
 
   const addRoot = useMutation({
     mutationFn: () => api.roots.create({ path: newPath, label: newLabel }),
@@ -102,6 +105,19 @@ export function SettingsPage() {
   const updateAppName = useMutation({
     mutationFn: () => api.config.update({ app_name: editAppName }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['config'] }); setEditAppNameOpen(false) },
+  })
+
+  const resetDB = useMutation({
+    mutationFn: async () => {
+      await api.reset()
+      const job = await api.scan.start()
+      return job
+    },
+    onSuccess: (job) => {
+      setScanJobId(job.jobId)
+      setResetOpen(false)
+      qc.invalidateQueries()
+    },
   })
 
   const openEditLib = (lib: Library) => { setEditLib(lib); setEditLibName(lib.name); setEditLibIcon(lib.icon) }
@@ -177,6 +193,20 @@ export function SettingsPage() {
             Status: {scanJob.status} — {scanJob.scanned} scanned, {scanJob.added} added
           </p>
         )}
+      </section>
+
+      {/* Danger zone */}
+      <section>
+        <h2 className="text-lg font-medium mb-3 text-destructive">Danger Zone</h2>
+        <div className="flex items-center justify-between p-3 border border-destructive/30 rounded-lg">
+          <div>
+            <p className="font-medium text-sm">Reset Database</p>
+            <p className="text-xs text-muted-foreground">Wipe all entries, libraries, categories, tags, collections, and favorites. Storage roots are preserved. A full rescan will run automatically.</p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => setResetOpen(true)}>
+            <AlertTriangle size={14} className="mr-1.5" />Reset
+          </Button>
+        </div>
       </section>
 
       {/* Libraries */}
@@ -255,6 +285,23 @@ export function SettingsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteLib(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => delLib.mutate()} disabled={delLib.isPending}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset DB dialog */}
+      <Dialog open={resetOpen} onOpenChange={o => !o && setResetOpen(false)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reset Database?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete all indexed entries, libraries, categories, tags, collections, and favorites.
+            Storage roots and files on disk are not affected. A full rescan will start automatically.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => resetDB.mutate()} disabled={resetDB.isPending}>
+              {resetDB.isPending ? 'Resetting…' : 'Reset & Rescan'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

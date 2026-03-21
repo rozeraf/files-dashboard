@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/rozeraf/files-dashboard/internal/index"
 	"github.com/rozeraf/files-dashboard/internal/model"
 )
 
@@ -43,6 +44,14 @@ func (h *Handler) updateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	h.cfg.Save()
 	writeJSON(w, 200, model.UpdateConfigResponse{RestartRequired: restartRequired})
+}
+
+func (h *Handler) resetDB(w http.ResponseWriter, r *http.Request) {
+	if err := index.ResetDB(h.db); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"status": "ok"})
 }
 
 func (h *Handler) startScan(w http.ResponseWriter, r *http.Request) {

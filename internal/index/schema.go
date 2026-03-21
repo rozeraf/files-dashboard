@@ -113,3 +113,26 @@ func migrate(db *sql.DB) error {
 	_, err := db.Exec(ddl)
 	return err
 }
+
+// ResetDB drops all data except roots and recreates the schema.
+func ResetDB(db *sql.DB) error {
+	drops := []string{
+		`DELETE FROM collection_entries`,
+		`DELETE FROM entry_categories`,
+		`DELETE FROM entry_tags`,
+		`DELETE FROM favorites`,
+		`DELETE FROM entries_fts`,
+		`DELETE FROM entries`,
+		`DELETE FROM categories`,
+		`DELETE FROM libraries`,
+		`DELETE FROM collections`,
+		`DELETE FROM saved_views`,
+		`DELETE FROM tags`,
+	}
+	for _, q := range drops {
+		if _, err := db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
