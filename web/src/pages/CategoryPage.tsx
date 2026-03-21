@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { LayoutGrid, List, Pencil, Trash2, Upload, FilePlus } from 'lucide-react'
+import { LayoutGrid, List, Pencil, Trash2, Upload, FilePlus, FolderPlus } from 'lucide-react'
 
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
@@ -32,6 +32,10 @@ export function CategoryPage() {
   const [uploadPath, setUploadPath] = useState('')
   const [uploading, setUploading] = useState(false)
 
+  // subcategory
+  const [newSubcatOpen, setNewSubcatOpen] = useState(false)
+  const [newSubcatName, setNewSubcatName] = useState('')
+
   // create text file
   const [createOpen, setCreateOpen] = useState(false)
   const [createRootId, setCreateRootId] = useState('')
@@ -41,6 +45,11 @@ export function CategoryPage() {
   const [creating, setCreating] = useState(false)
 
   const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
+
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ['subcategories', categoryId],
+    queryFn: () => api.categories.subcategories(categoryId!),
+  })
 
   const { data: category } = useQuery({
     queryKey: ['category', categoryId],
@@ -54,6 +63,16 @@ export function CategoryPage() {
   const entries = data?.items ?? []
 
   const invalidateEntries = () => qc.invalidateQueries({ queryKey: ['category-entries', categoryId] })
+
+  const createSubcat = useMutation({
+    mutationFn: () => api.categories.create(category!.library_id, categoryId!, newSubcatName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subcategories', categoryId] })
+      qc.invalidateQueries({ queryKey: ['sidebar-categories'] })
+      setNewSubcatOpen(false)
+      setNewSubcatName('')
+    },
+  })
 
   const openUpload = () => {
     setUploadRootId(roots[0]?.id ?? '')
@@ -73,9 +92,9 @@ export function CategoryPage() {
     if (!files || !uploadRootId) return
     setUploading(true)
     try {
-      await Promise.all(Array.from(files).map(async file => {
+      await Promise.allSettled(Array.from(files).map(async file => {
         const entry = await api.fs.upload(uploadRootId, uploadPath, file)
-        await api.entries.assignCategories(entry.id, [categoryId!], [])
+        if (entry.id) await api.entries.assignCategories(entry.id, [categoryId!], [])
       }))
       invalidateEntries()
       setUploadOpen(false)
@@ -134,6 +153,9 @@ export function CategoryPage() {
 
         {/* Right: upload/create + view toggle */}
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)}>
+            <FolderPlus size={14} className="mr-1.5" />New Subcategory
+          </Button>
           <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0}>
             <Upload size={14} className="mr-1.5" />Upload
           </Button>
@@ -146,6 +168,21 @@ export function CategoryPage() {
           </div>
         </div>
       </div>
+
+      {/* Subcategories */}
+      {subcategories.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {subcategories.map(sub => (
+            <button
+              key={sub.id}
+              onClick={() => navigate(`/categories/${sub.id}`)}
+              className="p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-left"
+            >
+              <p className="font-medium text-sm">{sub.name}</p>
+            </button>
+          ))}
+        </div>
+      )}
 
       {view === 'grid'
         ? <EntryGrid entries={entries} onSelect={e => setDetailId(e.id)} />
@@ -259,6 +296,24 @@ export function CategoryPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={() => del.mutate()} disabled={del.isPending}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New subcategory dialog */}
+      <Dialog open={newSubcatOpen} onOpenChange={o => !o && setNewSubcatOpen(false)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New Subcategory</DialogTitle></DialogHeader>
+          <Input
+            placeholder="Subcategory name"
+            value={newSubcatName}
+            onChange={e => setNewSubcatName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && newSubcatName && createSubcat.mutate()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewSubcatOpen(false)}>Cancel</Button>
+            <Button onClick={() => createSubcat.mutate()} disabled={!newSubcatName || createSubcat.isPending}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

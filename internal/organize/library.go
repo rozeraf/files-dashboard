@@ -188,6 +188,25 @@ func (s *Store) GetCategory(id string) (model.Category, error) {
 	return c, err
 }
 
+func (s *Store) ListSubcategories(parentID string) ([]model.Category, error) {
+	rows, err := s.db.Query(`SELECT id,library_id,parent_id,name,slug,position,created_at FROM categories WHERE parent_id=? ORDER BY position`, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cats []model.Category
+	for rows.Next() {
+		var c model.Category
+		var pid sql.NullString
+		rows.Scan(&c.ID, &c.LibraryID, &pid, &c.Name, &c.Slug, &c.Position, &c.CreatedAt)
+		if pid.Valid {
+			c.ParentID = &pid.String
+		}
+		cats = append(cats, c)
+	}
+	return cats, rows.Err()
+}
+
 // AssignEntryCategories performs a delta assignment (add + remove).
 func (s *Store) AssignEntryCategories(entryID string, add, remove []string) error {
 	tx, err := s.db.Begin()

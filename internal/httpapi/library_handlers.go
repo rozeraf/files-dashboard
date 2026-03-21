@@ -118,6 +118,18 @@ func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+func (h *Handler) listSubcategories(w http.ResponseWriter, r *http.Request) {
+	cats, err := h.store.ListSubcategories(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if cats == nil {
+		cats = []model.Category{}
+	}
+	writeJSON(w, 200, cats)
+}
+
 func (h *Handler) categoryEntries(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))

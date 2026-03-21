@@ -69,6 +69,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Patch("/categories/{id}", h.updateCategory)
 		r.Delete("/categories/{id}", h.deleteCategory)
 		r.Get("/categories/{id}/entries", h.categoryEntries)
+		r.Get("/categories/{id}/subcategories", h.listSubcategories)
 
 		// Entry logical ops
 		r.Post("/entries/{id}/categories", h.assignCategories)

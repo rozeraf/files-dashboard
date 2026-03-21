@@ -247,8 +247,10 @@ func (h *Handler) createDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := model.Entry{RelPath: relPath, ParentRelPath: req.RelPath, Name: req.Name, Kind: "dir", Mtime: time.Now().Unix()}
-	h.syncer.AddEntry(req.RootID, e)
-	w.WriteHeader(201)
+	id, _ := h.syncer.AddEntry(req.RootID, e)
+	e.ID = id
+	e.RootID = req.RootID
+	writeJSON(w, 201, e)
 }
 
 func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
@@ -275,13 +277,18 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	entries, _ := fsops.ListDir(rootPath, relPath)
 	for _, e := range entries {
 		if e.RelPath == savedRelPath {
-			id, _ := h.syncer.AddEntry(rootID, e)
+			id, err := h.syncer.AddEntry(rootID, e)
+			if err != nil || id == "" {
+				// entry may already exist (e.g. concurrent scan) — look it up
+				h.db.QueryRow(`SELECT id FROM entries WHERE root_id=? AND rel_path=?`, rootID, e.RelPath).Scan(&id)
+			}
 			e.ID = id
+			e.RootID = rootID
 			writeJSON(w, 201, e)
 			return
 		}
 	}
-	w.WriteHeader(201)
+	writeJSON(w, 201, model.Entry{RootID: rootID, RelPath: savedRelPath})
 }
 
 func isDir(path string) bool {

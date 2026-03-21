@@ -92,6 +92,7 @@ export const api = {
     delete: (id: string) => del<void>(`/categories/${id}`),
     entries: (id: string, page = 1, limit = 50) =>
       get<PagedResponse<Entry>>(`/categories/${id}/entries?page=${page}&limit=${limit}`),
+    subcategories: (id: string) => get<Category[]>(`/categories/${id}/subcategories`),
   },
   entries: {
     get: (id: string) => get<EntryDetail>(`/entries/${id}`),
