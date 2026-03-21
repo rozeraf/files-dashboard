@@ -24,10 +24,12 @@ export function LibraryPage() {
   const { data: library } = useQuery({
     queryKey: ['library', libraryId],
     queryFn: () => api.libraries.get(libraryId!),
+    enabled: !!libraryId,
   })
   const { data: tree = [] } = useQuery({
     queryKey: ['categories', libraryId],
     queryFn: () => api.libraries.categories(libraryId!),
+    enabled: !!libraryId,
   })
 
   const invalidateCats = () => qc.invalidateQueries({ queryKey: ['categories', libraryId] })
@@ -46,7 +48,7 @@ export function LibraryPage() {
     mutationFn: () => api.categories.delete(deleteCat!.id),
     onSuccess: () => {
       invalidateCats()
-      qc.invalidateQueries({ queryKey: ['sidebar-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
       setDeleteCat(null)
     },
   })

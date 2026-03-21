@@ -16,10 +16,12 @@ export function CollectionDetailPage() {
   const { data: col } = useQuery({
     queryKey: ['collection', collectionId],
     queryFn: () => api.collections.get(collectionId!),
+    enabled: !!collectionId,
   })
   const { data } = useQuery({
     queryKey: ['collection-entries', collectionId],
     queryFn: () => api.collections.entries(collectionId!),
+    enabled: !!collectionId,
   })
   const entries: Entry[] = data?.items ?? []
 

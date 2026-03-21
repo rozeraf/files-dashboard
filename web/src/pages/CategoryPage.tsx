@@ -49,16 +49,19 @@ export function CategoryPage() {
   const { data: subcategories = [] } = useQuery({
     queryKey: ['subcategories', categoryId],
     queryFn: () => api.categories.subcategories(categoryId!),
+    enabled: !!categoryId,
   })
 
   const { data: category } = useQuery({
     queryKey: ['category', categoryId],
     queryFn: () => api.categories.get(categoryId!),
+    enabled: !!categoryId,
   })
 
   const { data } = useQuery({
     queryKey: ['category-entries', categoryId],
     queryFn: () => api.categories.entries(categoryId!),
+    enabled: !!categoryId,
   })
   const entries = data?.items ?? []
 
@@ -68,7 +71,7 @@ export function CategoryPage() {
     mutationFn: () => api.categories.create(category!.library_id, categoryId!, newSubcatName),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['subcategories', categoryId] })
-      qc.invalidateQueries({ queryKey: ['sidebar-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
       setNewSubcatOpen(false)
       setNewSubcatName('')
     },
@@ -110,7 +113,7 @@ export function CategoryPage() {
     try {
       const file = new File([createContent], createName, { type: 'text/plain' })
       const entry = await api.fs.upload(createRootId, createPath, file)
-      await api.entries.assignCategories(entry.id, [categoryId!], [])
+      if (entry.id) await api.entries.assignCategories(entry.id, [categoryId!], [])
       invalidateEntries()
       setCreateOpen(false)
     } finally {
@@ -124,7 +127,7 @@ export function CategoryPage() {
     mutationFn: () => api.categories.update(categoryId!, { name: renameName }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['category', categoryId] })
-      qc.invalidateQueries({ queryKey: ['sidebar-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
       setRenameOpen(false)
     },
   })
@@ -132,7 +135,7 @@ export function CategoryPage() {
   const del = useMutation({
     mutationFn: () => api.categories.delete(categoryId!),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sidebar-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
       navigate(-1)
     },
   })

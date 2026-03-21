@@ -4,6 +4,7 @@ package httpapi
 import (
 	"database/sql"
 	"net/http"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,6 +20,7 @@ type Handler struct {
 	syncer  *index.Syncer
 	store   *organize.Store
 	jobs    *JobStore
+	scanMu  sync.Mutex
 }
 
 func NewHandler(cfg *config.Config, db *sql.DB) *Handler {

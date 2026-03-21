@@ -48,7 +48,9 @@ func (s *Syncer) Search(q string, p SearchParams) ([]model.Entry, error) {
 	if q != "" {
 		joins = append(joins, `JOIN entries_fts ON entries_fts.rowid = e.rowid`)
 		wheres = append(wheres, `entries_fts MATCH ?`)
-		args = append(args, q+"*")
+		// Escape FTS5 special characters by wrapping in double quotes (phrase query).
+		escaped := strings.ReplaceAll(q, `"`, `""`)
+		args = append(args, `"`+escaped+`"*`)
 	}
 
 	if p.LibraryID != "" {

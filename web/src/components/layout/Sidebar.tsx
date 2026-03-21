@@ -83,18 +83,25 @@ function LibraryCategories({ libraryId }: { libraryId: string }) {
   })
   return (
     <div className="ml-4 flex flex-col gap-0.5">
-      {tree?.map(cat => (
-        <NavLink
-          key={cat.id}
-          to={`/categories/${cat.id}`}
-          className={({ isActive }) => cn(
-            'px-3 py-1 rounded text-xs truncate',
-            isActive ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          {cat.name}
-        </NavLink>
-      ))}
+      {tree?.map(cat => <CategoryNavItem key={cat.id} cat={cat} depth={0} />)}
     </div>
+  )
+}
+
+function CategoryNavItem({ cat, depth }: { cat: import('@/lib/api').Category; depth: number }) {
+  return (
+    <>
+      <NavLink
+        to={`/categories/${cat.id}`}
+        className={({ isActive }) => cn(
+          'px-3 py-1 rounded text-xs truncate',
+          isActive ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+        )}
+        style={{ paddingLeft: `${12 + depth * 12}px` }}
+      >
+        {cat.name}
+      </NavLink>
+      {cat.children?.map(child => <CategoryNavItem key={child.id} cat={child} depth={depth + 1} />)}
+    </>
   )
 }
