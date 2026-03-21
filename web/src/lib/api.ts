@@ -154,4 +154,5 @@ export const api = {
     start: () => post<ScanJob>('/scan'),
     status: (jobId: string) => get<ScanJob>(`/scan/${jobId}`),
   },
+  reset: () => post<{ status: string }>('/reset'),
 }

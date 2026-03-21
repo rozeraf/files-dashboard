@@ -57,18 +57,25 @@ export function LibraryPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{library?.icon} {library?.name}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{library?.icon} {library?.name}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{tree.length} {tree.length === 1 ? 'category' : 'categories'}</p>
+      </div>
 
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium">Categories</h2>
-          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)}>
-            <Plus size={14} className="mr-1" />New Category
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Categories</h2>
+          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)} className="gap-1.5">
+            <Plus size={14} />New Category
           </Button>
         </div>
 
         {tree.length === 0 && (
-          <p className="text-sm text-muted-foreground">No categories yet.</p>
+          <div className="text-center py-16">
+            <Plus size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No categories yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Create categories to organize files in this library</p>
+          </div>
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -76,19 +83,19 @@ export function LibraryPage() {
             <div key={cat.id} className="relative group">
               <button
                 onClick={() => navigate(`/categories/${cat.id}`)}
-                className="w-full p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-left"
+                className="w-full p-5 rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left"
               >
-                <p className="font-medium text-sm">{cat.name}</p>
+                <p className="font-semibold text-sm">{cat.name}</p>
                 {cat.children && cat.children.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">{cat.children.length} subcategories</p>
+                  <p className="text-xs text-muted-foreground mt-1.5">{cat.children.length} subcategories</p>
                 )}
               </button>
-              <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); openEditCat(cat) }}>
-                  <Pencil size={11} />
+              <div className="absolute top-3 right-3 hidden group-hover:flex gap-0.5">
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm" onClick={e => { e.stopPropagation(); openEditCat(cat) }}>
+                  <Pencil size={12} />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCat(cat) }}>
-                  <Trash2 size={11} />
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCat(cat) }}>
+                  <Trash2 size={12} />
                 </Button>
               </div>
             </div>

@@ -1,13 +1,13 @@
 {
-  "host": "127.0.0.1",
+  "host": "0.0.0.0",
   "port": 4537,
   "app_name": "files-dashboard",
   "roots": [
     {
-      "id": "4bfe0c32-ff66-4183-bcf7-09e8390fea2d",
+      "id": "733ec2e3-10e8-414b-9760-db3a554bab44",
       "path": "/home/raf/git/users/rozeraf/files",
-      "label": "Main"
+      "label": "jk"
     }
   ],
-  "lan_enabled": false
+  "lan_enabled": true
 }

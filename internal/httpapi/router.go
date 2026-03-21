@@ -118,6 +118,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Patch("/config", h.updateConfig)
 		r.Post("/scan", h.startScan)
 		r.Get("/scan/{jobId}", h.scanStatus)
+		r.Post("/reset", h.resetDB)
 	})
 
 	// SPA fallback

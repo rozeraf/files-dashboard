@@ -113,3 +113,18 @@ func migrate(db *sql.DB) error {
 	_, err := db.Exec(ddl)
 	return err
 }
+
+// ResetDB deletes all data from every table but leaves the schema intact.
+func ResetDB(db *sql.DB) error {
+	tables := []string{
+		"collection_entries", "entry_categories", "entry_tags",
+		"favorites", "entries_fts", "entries", "categories",
+		"libraries", "collections", "saved_views", "tags",
+	}
+	for _, t := range tables {
+		if _, err := db.Exec("DELETE FROM " + t); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -3,18 +3,17 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { SelectionToolbar } from '@/components/ui/SelectionToolbar'
-import { useUI } from '@/stores/ui'
-import { cn } from '@/lib/utils'
 
 export function Shell() {
-  const { sidebarOpen } = useUI()
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
-      <div className={cn('flex flex-col flex-1 min-w-0 transition-all', sidebarOpen ? 'ml-0' : 'ml-0')}>
+      <div className="flex flex-col flex-1 min-w-0">
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <div className="animate-in max-w-6xl">
+            <Outlet />
+          </div>
         </main>
         <SelectionToolbar />
       </div>

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Tag as TagIcon } from 'lucide-react'
 
 export function TagsPage() {
   const navigate = useNavigate()
@@ -18,13 +18,13 @@ export function TagsPage() {
   const [editTag, setEditTag] = useState<Tag | null>(null)
   const [deleteTag, setDeleteTag] = useState<Tag | null>(null)
   const [name, setName] = useState('')
-  const [color, setColor] = useState('#6366f1')
+  const [color, setColor] = useState('#d97706')
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['tags'] })
 
   const create = useMutation({
     mutationFn: () => api.tags.create(name, color),
-    onSuccess: () => { invalidate(); setCreateOpen(false); setName(''); setColor('#6366f1') },
+    onSuccess: () => { invalidate(); setCreateOpen(false); setName(''); setColor('#d97706') },
   })
 
   const update = useMutation({
@@ -37,37 +37,52 @@ export function TagsPage() {
     onSuccess: () => { invalidate(); setDeleteTag(null) },
   })
 
-  const openEdit = (tag: Tag) => { setEditTag(tag); setName(tag.name); setColor(tag.color || '#6366f1') }
-  const openCreate = () => { setName(''); setColor('#6366f1'); setCreateOpen(true) }
+  const openEdit = (tag: Tag) => { setEditTag(tag); setName(tag.name); setColor(tag.color || '#d97706') }
+  const openCreate = () => { setName(''); setColor('#d97706'); setCreateOpen(true) }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tags</h1>
-        <Button size="sm" onClick={openCreate}><Plus size={14} className="mr-1" />New Tag</Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Tags</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{data.length} {data.length === 1 ? 'tag' : 'tags'}</p>
+        </div>
+        <Button size="sm" onClick={openCreate} className="gap-1.5">
+          <Plus size={14} />New Tag
+        </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {data.map(tag => (
-          <div key={tag.id} className="flex items-center gap-1 group">
-            <button onClick={() => navigate(`/search?tags=${tag.id}`)}>
-              <Badge style={{ backgroundColor: tag.color || undefined }} className="cursor-pointer text-sm px-3 py-1">
-                {tag.name}
-              </Badge>
-            </button>
-            <div className="hidden group-hover:flex gap-0.5">
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(tag)}>
-                <Pencil size={11} />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteTag(tag)}>
-                <Trash2 size={11} />
-              </Button>
+      {data.length === 0 ? (
+        <div className="text-center py-20">
+          <TagIcon size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground">No tags yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Create tags to organize your files</p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {data.map(tag => (
+            <div key={tag.id} className="flex items-center gap-1 group">
+              <button onClick={() => navigate(`/search?tags=${tag.id}`)}>
+                <Badge
+                  style={{ backgroundColor: tag.color || undefined }}
+                  className="cursor-pointer text-sm px-3 py-1.5 transition-all hover:opacity-80 shadow-sm"
+                >
+                  {tag.name}
+                </Badge>
+              </button>
+              <div className="hidden group-hover:flex gap-0.5">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(tag)}>
+                  <Pencil size={11} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteTag(tag)}>
+                  <Trash2 size={11} />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => !o && setCreateOpen(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>New Tag</DialogTitle></DialogHeader>
@@ -75,7 +90,7 @@ export function TagsPage() {
             <Input placeholder="Tag name" value={name} onChange={e => setName(e.target.value)} autoFocus
               onKeyDown={e => e.key === 'Enter' && name && create.mutate()} />
             <input type="color" value={color} onChange={e => setColor(e.target.value)}
-              className="h-9 w-12 cursor-pointer rounded border border-input p-0.5" />
+              className="h-9 w-12 cursor-pointer rounded-lg border border-input p-0.5" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -84,7 +99,6 @@ export function TagsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
       <Dialog open={!!editTag} onOpenChange={o => !o && setEditTag(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Tag</DialogTitle></DialogHeader>
@@ -92,7 +106,7 @@ export function TagsPage() {
             <Input value={name} onChange={e => setName(e.target.value)} autoFocus
               onKeyDown={e => e.key === 'Enter' && name && update.mutate()} />
             <input type="color" value={color} onChange={e => setColor(e.target.value)}
-              className="h-9 w-12 cursor-pointer rounded border border-input p-0.5" />
+              className="h-9 w-12 cursor-pointer rounded-lg border border-input p-0.5" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTag(null)}>Cancel</Button>
@@ -101,7 +115,6 @@ export function TagsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <Dialog open={!!deleteTag} onOpenChange={o => !o && setDeleteTag(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete "{deleteTag?.name}"?</DialogTitle></DialogHeader>

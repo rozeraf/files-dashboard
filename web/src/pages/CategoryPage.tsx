@@ -141,11 +141,10 @@ export function CategoryPage() {
   })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        {/* Left: category name + edit/delete */}
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{category?.name ?? 'Category'}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{category?.name ?? 'Category'}</h1>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openRename}>
             <Pencil size={14} />
           </Button>
@@ -154,20 +153,19 @@ export function CategoryPage() {
           </Button>
         </div>
 
-        {/* Right: upload/create + view toggle */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)}>
-            <FolderPlus size={14} className="mr-1.5" />New Subcategory
+          <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)} className="gap-1.5">
+            <FolderPlus size={14} />Subcategory
           </Button>
-          <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0}>
-            <Upload size={14} className="mr-1.5" />Upload
+          <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0} className="gap-1.5">
+            <Upload size={14} />Upload
           </Button>
-          <Button variant="outline" size="sm" onClick={openCreate} disabled={roots.length === 0}>
-            <FilePlus size={14} className="mr-1.5" />Create
+          <Button variant="outline" size="sm" onClick={openCreate} disabled={roots.length === 0} className="gap-1.5">
+            <FilePlus size={14} />Create
           </Button>
           <div className="flex gap-1 border-l pl-2 ml-1">
-            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" onClick={() => setView('grid')}><LayoutGrid size={16} /></Button>
-            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" onClick={() => setView('table')}><List size={16} /></Button>
+            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('grid')}><LayoutGrid size={15} /></Button>
+            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('table')}><List size={15} /></Button>
           </div>
         </div>
       </div>
@@ -179,7 +177,7 @@ export function CategoryPage() {
             <button
               key={sub.id}
               onClick={() => navigate(`/categories/${sub.id}`)}
-              className="p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-left"
+              className="p-4 rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left"
             >
               <p className="font-medium text-sm">{sub.name}</p>
             </button>
