@@ -175,8 +175,11 @@ func (h *Handler) renameEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var rootID, relPath, rootPath string
-	h.db.QueryRow(`SELECT e.root_id, e.rel_path, r.path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
-		Scan(&rootID, &relPath, &rootPath)
+	if err := h.db.QueryRow(`SELECT e.root_id, e.rel_path, r.path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
+		Scan(&rootID, &relPath, &rootPath); err != nil {
+		writeError(w, 404, "entry not found")
+		return
+	}
 
 	if err := fsops.Rename(rootPath, relPath, req.Name); err != nil {
 		writeError(w, 500, err.Error())
@@ -194,12 +197,17 @@ func (h *Handler) moveEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var destRootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.DestRootID).Scan(&destRootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.DestRootID).Scan(&destRootPath); err != nil {
+		writeError(w, 404, "destination root not found")
+		return
+	}
 
 	for _, id := range req.IDs {
 		var srcRootPath, relPath string
-		h.db.QueryRow(`SELECT r.path, e.rel_path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
-			Scan(&srcRootPath, &relPath)
+		if err := h.db.QueryRow(`SELECT r.path, e.rel_path FROM entries e JOIN roots r ON r.id=e.root_id WHERE e.id=?`, id).
+			Scan(&srcRootPath, &relPath); err != nil {
+			continue
+		}
 		if err := fsops.Move(srcRootPath, relPath, destRootPath, req.DestRelPath); err != nil {
 			writeError(w, 500, err.Error())
 			return
@@ -238,7 +246,10 @@ func (h *Handler) createDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.RootID).Scan(&rootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, req.RootID).Scan(&rootPath); err != nil {
+		writeError(w, 404, "root not found")
+		return
+	}
 
 	relPath := filepath.Join(req.RelPath, req.Name)
 	if err := fsops.Mkdir(rootPath, relPath); err != nil {
@@ -266,7 +277,10 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	var rootPath string
-	h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, rootID).Scan(&rootPath)
+	if err := h.db.QueryRow(`SELECT path FROM roots WHERE id=?`, rootID).Scan(&rootPath); err != nil {
+		writeError(w, 404, "root not found")
+		return
+	}
 
 	savedRelPath, err := fsops.SaveUpload(rootPath, relPath, header.Filename, file)
 	if err != nil {

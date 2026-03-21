@@ -53,12 +53,18 @@ func (h *Handler) updateTag(w http.ResponseWriter, r *http.Request) {
 	if req.Color != nil {
 		color = *req.Color
 	}
-	h.store.UpdateTag(chi.URLParam(r, "id"), req.Name, color)
+	if err := h.store.UpdateTag(chi.URLParam(r, "id"), req.Name, color); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 
 func (h *Handler) deleteTag(w http.ResponseWriter, r *http.Request) {
-	h.store.DeleteTag(chi.URLParam(r, "id"))
+	if err := h.store.DeleteTag(chi.URLParam(r, "id")); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
 	w.WriteHeader(204)
 }
 

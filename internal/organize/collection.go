@@ -42,10 +42,14 @@ func (s *Store) CreateCollection(name, description string) (model.Collection, er
 
 func (s *Store) UpdateCollection(id string, name, description *string) error {
 	if name != nil {
-		s.db.Exec(`UPDATE collections SET name=? WHERE id=?`, *name, id)
+		if _, err := s.db.Exec(`UPDATE collections SET name=? WHERE id=?`, *name, id); err != nil {
+			return err
+		}
 	}
 	if description != nil {
-		s.db.Exec(`UPDATE collections SET description=? WHERE id=?`, *description, id)
+		if _, err := s.db.Exec(`UPDATE collections SET description=? WHERE id=?`, *description, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -100,8 +104,10 @@ func (s *Store) ReorderCollection(collectionID string, order []string) error {
 	}
 	defer tx.Rollback()
 	for i, entryID := range order {
-		tx.Exec(`UPDATE collection_entries SET position=? WHERE collection_id=? AND entry_id=?`,
-			i, collectionID, entryID)
+		if _, err := tx.Exec(`UPDATE collection_entries SET position=? WHERE collection_id=? AND entry_id=?`,
+			i, collectionID, entryID); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

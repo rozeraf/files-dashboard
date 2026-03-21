@@ -98,7 +98,10 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
     mutationFn: () => data?.favorited
       ? api.favorites.remove(entryId!)
       : api.favorites.add(entryId!),
-    onSuccess: invalidateEntry,
+    onSuccess: () => {
+      invalidateEntry()
+      qc.invalidateQueries({ queryKey: ['favorites'] })
+    },
   })
 
   const rename = useMutation({
@@ -140,7 +143,12 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
 
   const addToCol = useMutation({
     mutationFn: () => api.collections.add(colId, entryId!),
-    onSuccess: () => { setColOpen(false); setColId('') },
+    onSuccess: () => {
+      invalidateEntry()
+      qc.invalidateQueries({ queryKey: ['collection-entries', colId] })
+      setColOpen(false)
+      setColId('')
+    },
   })
 
   const openRename = () => { setRenameName(data?.name ?? ''); setRenameOpen(true) }

@@ -39,10 +39,14 @@ func (s *Store) CreateSavedView(name, filtersJSON string) (model.SavedView, erro
 
 func (s *Store) UpdateSavedView(id string, name *string, filtersJSON *string) error {
 	if name != nil {
-		s.db.Exec(`UPDATE saved_views SET name=? WHERE id=?`, *name, id)
+		if _, err := s.db.Exec(`UPDATE saved_views SET name=? WHERE id=?`, *name, id); err != nil {
+			return err
+		}
 	}
 	if filtersJSON != nil {
-		s.db.Exec(`UPDATE saved_views SET filters=? WHERE id=?`, *filtersJSON, id)
+		if _, err := s.db.Exec(`UPDATE saved_views SET filters=? WHERE id=?`, *filtersJSON, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
