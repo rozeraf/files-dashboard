@@ -1,10 +1,10 @@
 // web/src/components/ui/EntryGrid.tsx
-import { useState } from 'react'
 import { api, Entry } from '@/lib/api'
 import { mimeToIcon, formatSize } from '@/lib/utils'
 import { useUI } from '@/stores/ui'
 import { cn } from '@/lib/utils'
 import { Lightbox } from './Lightbox'
+import { isImageEntry, isVideoEntry, useMediaViewer } from './useMediaViewer'
 import { Play, Check } from 'lucide-react'
 
 interface Props {
@@ -15,16 +15,17 @@ interface Props {
 
 export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
   const { selectedIds, selectEntry } = useUI()
-  const [lightboxId, setLightboxId] = useState<string | null>(null)
-
-  const mediaEntries = (lightboxEntries ?? entries).filter(
-    e => e.mime?.startsWith('image/') || e.mime?.startsWith('video/')
-  )
+  const { activeId, mediaEntries, open, close } = useMediaViewer(entries, lightboxEntries)
 
   const handleClick = (e: React.MouseEvent, entry: Entry) => {
-    if (e.shiftKey || e.metaKey) { selectEntry(entry.id, true); return }
-    if (entry.mime?.startsWith('image/') || entry.mime?.startsWith('video/')) { setLightboxId(entry.id) }
-    else { onSelect?.(entry) }
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      selectEntry(entry.id, true)
+      return
+    }
+
+    if (!open(entry)) {
+      onSelect?.(entry)
+    }
   }
 
   if (entries.length === 0) {
@@ -40,8 +41,8 @@ export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2 sm:gap-3">
         {entries.map(entry => {
           const isSelected = selectedIds.has(entry.id)
-          const isImage = entry.mime?.startsWith('image/')
-          const isVideo = entry.mime?.startsWith('video/')
+          const isImage = isImageEntry(entry)
+          const isVideo = isVideoEntry(entry)
           return (
             <div
               key={entry.id}
@@ -95,11 +96,11 @@ export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
         })}
       </div>
 
-      {lightboxId && (
+      {activeId && (
         <Lightbox
           entries={mediaEntries}
-          activeId={lightboxId}
-          onClose={() => setLightboxId(null)}
+          activeId={activeId}
+          onClose={close}
         />
       )}
     </>

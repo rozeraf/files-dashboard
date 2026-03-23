@@ -1,10 +1,10 @@
 // web/src/components/ui/EntryTable.tsx
-import { useState } from 'react'
 import { Entry } from '@/lib/api'
 import { formatSize, formatDate, mimeToIcon } from '@/lib/utils'
 import { useUI } from '@/stores/ui'
 import { cn } from '@/lib/utils'
 import { Lightbox } from './Lightbox'
+import { useMediaViewer } from './useMediaViewer'
 
 interface Props {
   entries: Entry[]
@@ -14,16 +14,17 @@ interface Props {
 
 export function EntryTable({ entries, lightboxEntries, onSelect }: Props) {
   const { selectedIds, selectEntry } = useUI()
-  const [lightboxId, setLightboxId] = useState<string | null>(null)
-
-  const mediaEntries = (lightboxEntries ?? entries).filter(
-    e => e.mime?.startsWith('image/') || e.mime?.startsWith('video/')
-  )
+  const { activeId, mediaEntries, open, close } = useMediaViewer(entries, lightboxEntries)
 
   const handleClick = (e: React.MouseEvent, entry: Entry) => {
-    if (e.shiftKey || e.metaKey) { selectEntry(entry.id, true); return }
-    if (entry.mime?.startsWith('image/') || entry.mime?.startsWith('video/')) { setLightboxId(entry.id) }
-    else { onSelect?.(entry) }
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      selectEntry(entry.id, true)
+      return
+    }
+
+    if (!open(entry)) {
+      onSelect?.(entry)
+    }
   }
 
   if (entries.length === 0) {
@@ -97,11 +98,11 @@ export function EntryTable({ entries, lightboxEntries, onSelect }: Props) {
         </table>
       </div>
 
-      {lightboxId && (
+      {activeId && (
         <Lightbox
           entries={mediaEntries}
-          activeId={lightboxId}
-          onClose={() => setLightboxId(null)}
+          activeId={activeId}
+          onClose={close}
         />
       )}
     </>
