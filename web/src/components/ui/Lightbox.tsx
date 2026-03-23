@@ -260,7 +260,7 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
 
       {/* Controls overlay */}
       <div
-        className={`absolute inset-x-0 bottom-0 px-4 pt-16 pb-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 ${ctrlsOn ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`safe-bottom absolute inset-x-0 bottom-0 px-3 pt-16 pb-3 sm:px-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 ${ctrlsOn ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={e => e.stopPropagation()}
       >
         {/* Progress bar — tall hit area, thin visual track */}
@@ -341,10 +341,63 @@ interface Props {
   onClose: () => void
 }
 
+interface QueuePreviewProps {
+  entry: Entry
+  showVideoPreview: boolean
+  className: string
+  playIconSize?: number
+  filmIconSize?: number
+}
+
+function QueuePreview({
+  entry,
+  showVideoPreview,
+  className,
+  playIconSize = 14,
+  filmIconSize = 14,
+}: QueuePreviewProps) {
+  return (
+    <div className={`${className} overflow-hidden bg-black/60 relative`}>
+      {isImg(entry) && (
+        <img
+          src={api.fs.raw(entry.id)}
+          alt={entry.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      )}
+
+      {isVid(entry) && (
+        showVideoPreview ? (
+          <>
+            <video
+              src={`${api.fs.raw(entry.id)}#t=0.1`}
+              className="w-full h-full object-cover"
+              preload="metadata"
+              muted
+              playsInline
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play size={playIconSize} className="fill-white text-white drop-shadow" />
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/70 text-white/50">
+            <Film size={filmIconSize} />
+            <Play size={Math.max(12, playIconSize - 2)} className="fill-current" />
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
 export function Lightbox({ entries, activeId, onClose }: Props) {
   const [currentId, setCurrentId] = useState(activeId)
   const [zoom, setZoom] = useState(1)
-  const queueRef = useRef<HTMLDivElement>(null)
+  const [mobileQueueOpen, setMobileQueueOpen] = useState(false)
+  const desktopQueueRef = useRef<HTMLDivElement>(null)
+  const mobileQueueRef = useRef<HTMLDivElement>(null)
 
   const idx   = entries.findIndex(e => e.id === currentId)
   const entry = entries[idx]
@@ -361,11 +414,20 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
   // scroll active item into view in queue
   useEffect(() => {
-    const active = queueRef.current?.querySelector('[data-active="true"]')
-    active?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [currentId])
+    const scrollActive = (container: HTMLDivElement | null) => {
+      const active = container?.querySelector('[data-active="true"]')
+      active?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+    }
 
-  useEffect(() => { setCurrentId(activeId); setZoom(1) }, [activeId])
+    scrollActive(desktopQueueRef.current)
+    scrollActive(mobileQueueRef.current)
+  }, [currentId, mobileQueueOpen])
+
+  useEffect(() => {
+    setCurrentId(activeId)
+    setZoom(1)
+    setMobileQueueOpen(false)
+  }, [activeId])
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -396,21 +458,34 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
   if (!entry) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-[#0f0f0f] flex overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#0f0f0f] flex overflow-hidden relative">
 
       {/* ── Main column ── */}
       <div className="flex flex-col flex-1 min-w-0">
 
         {/* Top bar */}
-        <div className="flex items-center h-11 px-4 gap-3 shrink-0 border-b border-white/5">
-          <span className="text-white/40 text-sm tabular-nums">{idx + 1} / {entries.length}</span>
-          <span className="text-white/80 text-sm font-medium truncate flex-1">{entry.name}</span>
+        <div className="safe-top flex min-h-11 items-center gap-2 border-b border-white/5 px-3 py-1.5 sm:px-4 sm:py-0 sm:gap-3 shrink-0">
+          <span className="text-white/40 text-xs sm:text-sm tabular-nums">{idx + 1} / {entries.length}</span>
+          <span className="text-white/80 text-xs sm:text-sm font-medium truncate flex-1">{entry.name}</span>
+
+          {entries.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setMobileQueueOpen(open => !open)}
+              aria-expanded={mobileQueueOpen}
+              aria-label={mobileQueueOpen ? 'Close queue' : 'Open queue'}
+              className="sm:hidden inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/75 transition-colors hover:bg-white/10"
+            >
+              <Film size={13} />
+              <span>Queue</span>
+            </button>
+          )}
 
           {image && (
             <div className="flex items-center gap-1">
               <button onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))}
                 className="p-1 text-white/40 hover:text-white transition-colors"><ZoomOut size={15} /></button>
-              <span className="text-white/30 text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
+              <span className="hidden xs:block text-white/30 text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
               <button onClick={() => setZoom(z => Math.min(z + 0.25, 4))}
                 className="p-1 text-white/40 hover:text-white transition-colors"><ZoomIn size={15} /></button>
             </div>
@@ -439,14 +514,14 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
               </div>
               {idx > 0 && (
                 <button
-                  className="absolute left-3 p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  className="absolute left-1.5 rounded-full p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white sm:left-3 sm:p-2"
                   onClick={e => { e.stopPropagation(); go(-1) }}>
                   <ChevronLeft size={32} />
                 </button>
               )}
               {idx < entries.length - 1 && (
                 <button
-                  className="absolute right-3 p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  className="absolute right-1.5 rounded-full p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white sm:right-3 sm:p-2"
                   onClick={e => { e.stopPropagation(); go(1) }}>
                   <ChevronRight size={32} />
                 </button>
@@ -470,11 +545,11 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
       {/* ── Queue sidebar ── */}
       {entries.length > 1 && (
-        <div className="w-72 shrink-0 border-l border-white/5 flex flex-col">
+        <div className="hidden w-72 shrink-0 border-l border-white/5 sm:flex sm:flex-col">
           <p className="px-4 py-3 text-xs font-semibold text-white/30 uppercase tracking-wider shrink-0">
             Queue
           </p>
-          <div ref={queueRef} className="flex-1 overflow-y-auto">
+          <div ref={desktopQueueRef} className="flex-1 overflow-y-auto">
             {entries.map((e, i) => {
               const active = e.id === currentId
               const showVideoPreview = Math.abs(i - idx) <= 2
@@ -487,34 +562,11 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                     active ? 'bg-white/10' : 'hover:bg-white/5'
                   }`}
                 >
-                  {/* Thumbnail */}
-                  <div className="w-20 h-12 rounded overflow-hidden shrink-0 bg-black/60 relative">
-                    {isImg(e) && (
-                      <img src={api.fs.raw(e.id)} alt={e.name}
-                        className="w-full h-full object-cover" loading="lazy" />
-                    )}
-                    {isVid(e) && (
-                      showVideoPreview ? (
-                        <>
-                          <video
-                            src={`${api.fs.raw(e.id)}#t=0.1`}
-                            className="w-full h-full object-cover"
-                            preload="metadata"
-                            muted
-                            playsInline
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                            <Play size={14} className="fill-white text-white drop-shadow" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/70 text-white/50">
-                          <Film size={14} />
-                          <Play size={12} className="fill-current" />
-                        </div>
-                      )
-                    )}
-                  </div>
+                  <QueuePreview
+                    entry={e}
+                    showVideoPreview={showVideoPreview}
+                    className="h-12 w-20 shrink-0 rounded"
+                  />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
@@ -527,6 +579,89 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                 </button>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {entries.length > 1 && (
+        <div className="pointer-events-none absolute inset-0 z-20 sm:hidden">
+          <button
+            type="button"
+            aria-label="Close queue"
+            onClick={() => setMobileQueueOpen(false)}
+            className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ${
+              mobileQueueOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+            }`}
+          />
+
+          <div
+            className={`safe-bottom absolute inset-x-0 bottom-0 flex max-h-[min(60vh,32rem)] flex-col rounded-t-[1.75rem] border-t border-white/10 bg-[#141414]/95 shadow-2xl backdrop-blur-xl transition-transform duration-300 ${
+              mobileQueueOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full'
+            }`}
+          >
+            <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/15" />
+
+            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Queue</p>
+                <p className="mt-1 text-sm text-white/75">
+                  {idx + 1} of {entries.length}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileQueueOpen(false)}
+                className="rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div ref={mobileQueueRef} className="flex-1 overflow-y-auto px-3 pb-3 pt-2">
+              {entries.map((e, i) => {
+                const active = e.id === currentId
+                const showVideoPreview = Math.abs(i - idx) <= 2
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    data-active={active}
+                    onClick={() => {
+                      setCurrentId(e.id)
+                      setZoom(1)
+                      setMobileQueueOpen(false)
+                    }}
+                    className={`mb-2 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors ${
+                      active
+                        ? 'border-white/20 bg-white/10'
+                        : 'border-white/5 bg-white/[0.03] active:bg-white/10'
+                    }`}
+                  >
+                    <QueuePreview
+                      entry={e}
+                      showVideoPreview={showVideoPreview}
+                      className="h-16 w-24 shrink-0 rounded-xl"
+                      playIconSize={16}
+                      filmIconSize={16}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate text-sm font-medium ${active ? 'text-white' : 'text-white/75'}`}>{e.name}</p>
+                      <p className="mt-1 text-[11px] text-white/35">
+                        {i + 1} of {entries.length}
+                      </p>
+                    </div>
+
+                    {active && (
+                      <div className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/80">
+                        Now
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
