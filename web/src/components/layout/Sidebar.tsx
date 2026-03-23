@@ -41,71 +41,78 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      'safe-x safe-top safe-bottom fixed inset-y-0 left-0 z-50 w-[min(86vw,20rem)] sm:w-60 shrink-0 h-screen overflow-y-auto border-r border-sidebar-border bg-sidebar p-3 shadow-2xl flex flex-col gap-0.5',
+      'safe-x safe-top safe-bottom fixed inset-y-0 left-0 z-50 h-dvh w-[min(86vw,20rem)] shrink-0 border-r border-sidebar-border bg-sidebar shadow-2xl',
       'transition-transform duration-200 ease-out',
-      'md:relative md:z-auto md:translate-x-0 md:shadow-none',
+      'md:relative md:inset-auto md:left-auto md:h-auto md:w-60 md:translate-x-0 md:shadow-none',
       sidebarOpen ? 'translate-x-0' : '-translate-x-full'
     )}>
-      <div className="px-3 py-3 mb-1 flex items-center justify-between">
-        <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground">Files Dashboard</h1>
-        <button
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close navigation"
-          className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sidebar-border/70 bg-sidebar-accent/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent"
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      {navItem('/home', <Home size={15} />, 'Home')}
-      {navItem('/search', <Search size={15} />, 'Search')}
-
-      <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Libraries</div>
-      {libraries?.map(lib => (
-        <div key={lib.id}>
-          <div className="flex items-center">
-            <NavLink
-              to={`/libraries/${lib.id}`}
-              className={({ isActive }) => cn(
-                'flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-              )}
-            >
-              <span className="text-base leading-none">{lib.icon}</span>{lib.name}
-            </NavLink>
-            <button
-              onClick={() => toggle(lib.id)}
-              className="p-1 rounded text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-            >
-              <div className={cn('transition-transform duration-200', expandedLibs.has(lib.id) && 'rotate-90')}>
-                <ChevronRight size={13} />
-              </div>
-            </button>
-          </div>
-          <div className={cn(
-            'overflow-hidden transition-all duration-200',
-            expandedLibs.has(lib.id) ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          )}>
-            <LibraryCategories libraryId={lib.id} />
-          </div>
+      <div className="flex h-full min-h-0 flex-col gap-0.5 p-3">
+        <div className="mb-1 flex items-center justify-between px-3 py-3">
+          <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground">Files Dashboard</h1>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+            className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sidebar-border/70 bg-sidebar-accent/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent"
+          >
+            <X size={16} />
+          </button>
         </div>
-      ))}
 
-      <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Organize</div>
-      {navItem('/collections', <Library size={15} />, 'Collections')}
-      {navItem('/tags', <Tag size={15} />, 'Tags')}
-      {navItem('/saved-views', <FolderOpen size={15} />, 'Saved Views')}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {navItem('/home', <Home size={15} />, 'Home')}
+          {navItem('/search', <Search size={15} />, 'Search')}
 
-      <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Discover</div>
-      {navItem('/recent', <Clock size={15} />, 'Recent')}
-      {navItem('/favorites', <Heart size={15} />, 'Favorites')}
-      {navItem('/uncategorized', <HelpCircle size={15} />, 'Uncategorized')}
+          <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Libraries</div>
+          {libraries?.map(lib => (
+            <div key={lib.id}>
+              <div className="flex items-center">
+                <NavLink
+                  to={`/libraries/${lib.id}`}
+                  className={({ isActive }) => cn(
+                    'flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150',
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-primary'
+                      : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  )}
+                >
+                  <span className="text-base leading-none">{lib.icon}</span>{lib.name}
+                </NavLink>
+                <button
+                  onClick={() => toggle(lib.id)}
+                  className="p-1 rounded text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+                >
+                  <div className={cn('transition-transform duration-200', expandedLibs.has(lib.id) && 'rotate-90')}>
+                    <ChevronRight size={13} />
+                  </div>
+                </button>
+              </div>
+              <div className={cn(
+                'overflow-hidden transition-all duration-200',
+                expandedLibs.has(lib.id) ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+              )}>
+                <LibraryCategories libraryId={lib.id} />
+              </div>
+            </div>
+          ))}
 
-      <div className="mt-auto pt-3 border-t border-sidebar-border flex flex-col gap-0.5">
-        {navItem('/files', <Files size={15} />, 'Files')}
-        {navItem('/settings', <Settings size={15} />, 'Settings')}
+          <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Organize</div>
+          {navItem('/collections', <Library size={15} />, 'Collections')}
+          {navItem('/tags', <Tag size={15} />, 'Tags')}
+          {navItem('/saved-views', <FolderOpen size={15} />, 'Saved Views')}
+
+          <div className="mt-4 mb-1.5 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Discover</div>
+          {navItem('/recent', <Clock size={15} />, 'Recent')}
+          {navItem('/favorites', <Heart size={15} />, 'Favorites')}
+          {navItem('/uncategorized', <HelpCircle size={15} />, 'Uncategorized')}
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-0.5 border-t border-sidebar-border pt-3">
+          {navItem('/files', <Files size={15} />, 'Files')}
+          {navItem('/settings', <Settings size={15} />, 'Settings')}
+        </div>
       </div>
     </aside>
   )

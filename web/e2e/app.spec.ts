@@ -76,6 +76,18 @@ test.describe('mobile navigation', () => {
     await expect(page.getByRole('heading', { name: 'Files', exact: true })).toBeVisible()
   })
 
+  test('drawer keeps Settings reachable on mobile', async ({ page }) => {
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    await expect(page.getByRole('button', { name: 'Close navigation' })).toBeVisible()
+
+    await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
+    await page.getByRole('link', { name: 'Settings' }).click()
+
+    await expect(page).toHaveURL(/\/settings$/)
+    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible()
+  })
+
   test('lightbox queue opens and switches media on mobile', async ({ page }) => {
     await page.goto('/recent')
 

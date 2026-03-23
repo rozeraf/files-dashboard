@@ -8,7 +8,7 @@ import { useUI } from '@/stores/ui'
 export function Shell() {
   const { sidebarOpen, setSidebarOpen } = useUI()
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex h-dvh bg-background text-foreground overflow-hidden">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
