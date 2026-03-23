@@ -40,6 +40,7 @@ export function EntryTable({ entries, lightboxEntries, onSelect }: Props) {
         {entries.map(entry => (
           <button
             key={entry.id}
+            data-testid="entry-table-item"
             onClick={e => handleClick(e, entry)}
             onContextMenu={e => { e.preventDefault(); selectEntry(entry.id, true) }}
             className={cn(
@@ -76,6 +77,7 @@ export function EntryTable({ entries, lightboxEntries, onSelect }: Props) {
             {entries.map(entry => (
               <tr
                 key={entry.id}
+                data-testid="entry-table-item"
                 onClick={e => handleClick(e, entry)}
                 className={cn(
                   'border-t cursor-pointer transition-colors duration-100',

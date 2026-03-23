@@ -45,6 +45,7 @@ export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
           return (
             <div
               key={entry.id}
+              data-testid="entry-grid-item"
               onClick={e => handleClick(e, entry)}
               onContextMenu={e => { e.preventDefault(); selectEntry(entry.id, true) }}
               className={cn(

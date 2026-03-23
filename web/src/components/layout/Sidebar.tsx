@@ -50,6 +50,7 @@ export function Sidebar() {
         <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground">Files Dashboard</h1>
         <button
           onClick={() => setSidebarOpen(false)}
+          aria-label="Close navigation"
           className="md:hidden p-1 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
         >
           <X size={16} />

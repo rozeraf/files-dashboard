@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: run build dev-backend dev-frontend copy-frontend test test-race clean
+.PHONY: run build dev-backend dev-frontend copy-frontend test test-race test-e2e clean
 
 BINARY        = bin/files-dashboard
 FRONTEND_SRC  = web/dist
@@ -35,6 +35,10 @@ test:
 # Run tests with race detector
 test-race:
 	go test -race ./...
+
+# Run Playwright end-to-end tests
+test-e2e:
+	cd web && bun run test:e2e
 
 # Clean build artifacts
 clean:

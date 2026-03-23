@@ -66,6 +66,7 @@ export function FilesPage() {
         {roots.map(r => (
           <Button
             key={r.id}
+            data-testid="file-browser-root-button"
             variant={rootId === r.id ? 'default' : 'outline'}
             size="sm"
             onClick={() => { setRootId(r.id); setPath('') }}
@@ -120,6 +121,7 @@ export function FilesPage() {
               {entries.map(entry => (
                 <div key={entry.id} className="rounded-xl border bg-card p-3">
                   <button
+                    data-testid="file-browser-item-button"
                     className="flex w-full items-start gap-3 text-left"
                     onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
                   >
@@ -161,9 +163,11 @@ export function FilesPage() {
                   {entries.map(entry => (
                     <tr
                       key={entry.id}
+                      data-testid="file-browser-item-row"
                       className="border-t hover:bg-muted/30 transition-colors group"
                     >
                       <td
+                        data-testid="file-browser-item-button"
                         className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-2.5 cursor-pointer"
                         onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
                       >

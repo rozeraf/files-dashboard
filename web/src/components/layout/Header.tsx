@@ -45,6 +45,7 @@ export function Header() {
         variant="ghost"
         size="icon"
         onClick={toggleSidebar}
+        aria-label="Open navigation"
         className="md:hidden h-9 w-9 shrink-0"
       >
         <Menu size={18} />

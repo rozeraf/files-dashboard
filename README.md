@@ -125,6 +125,9 @@ curl -X POST http://localhost:4537/api/fs/roots \
 
 ```bash
 make test
+make test-e2e
 ```
 
-Покрыты: config, fsops, index (scan + FTS5 sync), model (slugify), organize (CRUD для всех сущностей).
+`make test-e2e` запускает Playwright smoke/e2e-набор против изолированного временного `DATA_DIR`, поднимает Go-приложение, создает фикстурный root с файлами и проверяет ключевые пользовательские сценарии в desktop и mobile viewport.
+
+Покрыты: config, fsops, index (scan + FTS5 sync), model (slugify), organize (CRUD для всех сущностей), а также Playwright smoke/e2e для поиска, файлового браузера, мобильной навигации и страниц со списками.
