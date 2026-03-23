@@ -19,8 +19,8 @@ export function Shell() {
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="animate-in max-w-6xl">
+        <main className="safe-x safe-bottom flex-1 overflow-y-auto px-3 py-3 pb-24 sm:p-6 sm:pb-6">
+          <div className="animate-in mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
         </main>

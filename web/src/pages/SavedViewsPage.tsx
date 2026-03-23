@@ -173,7 +173,7 @@ export function SavedViewsPage() {
   // ── Main content ──────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Saved Views</h1>
         <p className="text-sm text-muted-foreground">
           {views.length} view{views.length !== 1 && 's'}
@@ -208,7 +208,7 @@ export function SavedViewsPage() {
                   </div>
 
                   {/* Action buttons (visible on hover) */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"

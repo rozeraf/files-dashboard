@@ -41,9 +41,9 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      'fixed inset-y-0 left-0 z-50 w-64 sm:w-60 shrink-0 h-screen overflow-y-auto border-r border-sidebar-border bg-sidebar p-3 flex flex-col gap-0.5',
+      'safe-x safe-top safe-bottom fixed inset-y-0 left-0 z-50 w-[min(86vw,20rem)] sm:w-60 shrink-0 h-screen overflow-y-auto border-r border-sidebar-border bg-sidebar p-3 shadow-2xl flex flex-col gap-0.5',
       'transition-transform duration-200 ease-out',
-      'md:relative md:z-auto md:translate-x-0',
+      'md:relative md:z-auto md:translate-x-0 md:shadow-none',
       sidebarOpen ? 'translate-x-0' : '-translate-x-full'
     )}>
       <div className="px-3 py-3 mb-1 flex items-center justify-between">

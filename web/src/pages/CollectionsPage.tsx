@@ -41,12 +41,12 @@ export function CollectionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Collections</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Curated groups of files</p>
         </div>
-        <Button size="sm" onClick={openCreate} className="gap-1.5">
+        <Button size="sm" onClick={openCreate} className="gap-1.5 self-start">
           <Plus size={14} />New Collection
         </Button>
       </div>
@@ -68,7 +68,7 @@ export function CollectionsPage() {
                 <p className="font-semibold text-sm">{col.name}</p>
                 {col.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{col.description}</p>}
               </button>
-              <div className="absolute top-3 right-3 hidden group-hover:flex gap-0.5">
+              <div className="absolute top-3 right-3 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm" onClick={e => { e.stopPropagation(); openEdit(col) }}>
                   <Pencil size={12} />
                 </Button>

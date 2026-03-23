@@ -62,7 +62,7 @@ export function FilesPage() {
       </div>
 
       {/* Root selector */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap overflow-x-auto no-scrollbar pb-0.5">
         {roots.map(r => (
           <Button
             key={r.id}
@@ -80,7 +80,7 @@ export function FilesPage() {
         <>
           {/* Toolbar + Breadcrumb */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto no-scrollbar">
               <button onClick={() => setPath('')} className="hover:text-foreground font-medium transition-colors shrink-0">root</button>
               {breadcrumbs.map((seg, i, arr) => (
                 <span key={i} className="flex items-center gap-1.5 shrink-0">
@@ -92,11 +92,11 @@ export function FilesPage() {
                 </span>
               ))}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}>
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => fileInputRef.current?.click()}>
                 <Upload size={13} /><span className="hidden xs:inline">Upload</span>
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setMkdirOpen(true)}>
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => setMkdirOpen(true)}>
                 <FolderPlus size={13} /><span className="hidden xs:inline">New Folder</span>
               </Button>
               <input
@@ -115,7 +115,39 @@ export function FilesPage() {
               <p className="text-sm">This folder is empty</p>
             </div>
           ) : (
-            <div className="rounded-xl border overflow-hidden">
+            <>
+            <div className="space-y-2 sm:hidden">
+              {entries.map(entry => (
+                <div key={entry.id} className="rounded-xl border bg-card p-3">
+                  <button
+                    className="flex w-full items-start gap-3 text-left"
+                    onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
+                  >
+                    <span className="mt-0.5 text-base shrink-0">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{entry.name}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="tabular-nums">{formatSize(entry.size)}</span>
+                        <span>{formatDate(entry.mtime)}</span>
+                        <span className="font-mono">{entry.ext || entry.kind}</span>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="mt-3 flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Rename"
+                      onClick={e => { e.stopPropagation(); openRename(entry) }}>
+                      <Pencil size={13} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete"
+                      onClick={e => { e.stopPropagation(); setDeleteIds([entry.id]) }}>
+                      <Trash2 size={13} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden rounded-xl border overflow-hidden sm:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/40 text-left text-muted-foreground">
@@ -141,7 +173,7 @@ export function FilesPage() {
                       <td className="px-3 sm:px-4 py-2.5 text-muted-foreground tabular-nums hidden sm:table-cell">{formatSize(entry.size)}</td>
                       <td className="px-3 sm:px-4 py-2.5 text-muted-foreground hidden md:table-cell">{formatDate(entry.mtime)}</td>
                       <td className="px-3 sm:px-4 py-2.5">
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                        <div className="flex gap-1 justify-end">
                           <Button variant="ghost" size="icon" className="h-7 w-7" title="Rename"
                             onClick={e => { e.stopPropagation(); openRename(entry) }}>
                             <Pencil size={12} />
@@ -157,6 +189,7 @@ export function FilesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}

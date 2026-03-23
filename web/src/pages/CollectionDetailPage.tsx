@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { useState, useRef, useCallback } from 'react'
-import { X, GripVertical, Pencil } from 'lucide-react'
+import { X, GripVertical, Pencil, ChevronUp, ChevronDown } from 'lucide-react'
 import { formatSize, formatDate, mimeToIcon, cn } from '@/lib/utils'
 
 export function CollectionDetailPage() {
@@ -140,6 +140,21 @@ export function CollectionDetailPage() {
     [],
   )
 
+  const reorderEntries = useCallback((from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= entries.length || to >= entries.length) return
+
+    const reordered = [...entries]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+
+    qc.setQueryData(
+      ['collection-entries', collectionId],
+      (old: any) => old ? { ...old, items: reordered } : old,
+    )
+
+    reorderMut.mutate(reordered.map((e) => e.id))
+  }, [entries, collectionId, qc, reorderMut])
+
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLTableRowElement>, dropIdx: number) => {
       e.preventDefault()
@@ -150,21 +165,11 @@ export function CollectionDetailPage() {
         return
       }
 
-      const reordered = [...entries]
-      const [moved] = reordered.splice(from, 1)
-      reordered.splice(dropIdx, 0, moved)
-
-      // Optimistically update the cache
-      qc.setQueryData(
-        ['collection-entries', collectionId],
-        (old: any) => old ? { ...old, items: reordered } : old,
-      )
-
-      reorderMut.mutate(reordered.map((e) => e.id))
+      reorderEntries(from, dropIdx)
       setDragIndex(null)
       setOverIndex(null)
     },
-    [dragIndex, entries, collectionId, qc, reorderMut],
+    [dragIndex, reorderEntries],
   )
 
   // ── Render ───────────────────────────────────────────────
@@ -172,7 +177,7 @@ export function CollectionDetailPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           {/* Collection name: click to edit inline */}
           {editingName ? (
@@ -215,7 +220,7 @@ export function CollectionDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 shrink-0"
+          className="gap-1.5 shrink-0 self-start"
           onClick={openEditDialog}
         >
           <Pencil size={14} />
@@ -229,7 +234,57 @@ export function CollectionDetailPage() {
           This collection is empty. Add entries from the file browser.
         </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <>
+        <div className="space-y-2 sm:hidden">
+          {entries.map((entry, idx) => (
+            <div key={entry.id} className="rounded-xl border bg-card p-3">
+              <button className="flex w-full items-start gap-3 text-left" onClick={() => setDetailId(entry.id)}>
+                <span className="mt-0.5 shrink-0 text-base">
+                  {mimeToIcon(entry.mime, entry.kind)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{entry.name}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>#{idx + 1}</span>
+                    <span className="tabular-nums">{formatSize(entry.size)}</span>
+                    <span>{formatDate(entry.mtime)}</span>
+                  </div>
+                </div>
+              </button>
+              <div className="mt-3 flex justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={idx === 0 || reorderMut.isPending}
+                  onClick={() => reorderEntries(idx, idx - 1)}
+                >
+                  <ChevronUp size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={idx === entries.length - 1 || reorderMut.isPending}
+                  onClick={() => reorderEntries(idx, idx + 1)}
+                >
+                  <ChevronDown size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  title="Remove from collection"
+                  onClick={() => remove.mutate(entry.id)}
+                >
+                  <X size={14} />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden rounded-lg border overflow-hidden sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -298,7 +353,7 @@ export function CollectionDetailPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
                         title="Remove from collection"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -314,6 +369,7 @@ export function CollectionDetailPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Edit dialog */}

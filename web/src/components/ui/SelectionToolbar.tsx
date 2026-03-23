@@ -86,27 +86,27 @@ export function SelectionToolbar() {
   return (
     <>
       <div
-        className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 rounded-2xl bg-card border shadow-2xl transition-all duration-300 max-w-[calc(100vw-2rem)] ${
+        className={`safe-bottom-offset fixed bottom-3 left-3 right-3 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-40 flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 rounded-2xl bg-card border shadow-2xl transition-all duration-300 overflow-x-auto no-scrollbar sm:max-w-[calc(100vw-2rem)] ${
           count > 0 ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'
         }`}
       >
         <span className="text-xs sm:text-sm font-semibold tabular-nums pr-0.5 sm:pr-1 whitespace-nowrap">{count}</span>
         <div className="w-px h-5 bg-border shrink-0" />
 
-        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openMove}>
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3 shrink-0" onClick={openMove}>
           <FolderInput size={13} /><span className="hidden sm:inline">Move</span>
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openTags}>
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3 shrink-0" onClick={openTags}>
           <Tag size={13} /><span className="hidden sm:inline">Tag</span>
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3" onClick={openCats}>
+        <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3 shrink-0" onClick={openCats}>
           <Library size={13} /><span className="hidden sm:inline">Categorize</span>
         </Button>
 
         <div className="w-px h-5 bg-border shrink-0" />
         <Button
           variant="ghost" size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 sm:gap-1.5 h-8 text-xs px-2 sm:px-3 shrink-0"
           onClick={() => setConfirmOpen(true)}
         >
           <Trash2 size={13} /><span className="hidden sm:inline">Delete</span>

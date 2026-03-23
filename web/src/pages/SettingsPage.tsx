@@ -133,7 +133,7 @@ export function SettingsPage() {
           <Settings2 size={15} className="text-muted-foreground" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application</h2>
         </div>
-        <div className="flex items-center justify-between p-4 border rounded-xl bg-card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-xl bg-card">
           <div>
             <p className="text-xs text-muted-foreground">App name</p>
             <p className="font-medium text-sm mt-0.5">{config?.app_name}</p>
@@ -152,9 +152,9 @@ export function SettingsPage() {
         </div>
         <div className="space-y-2">
           {config?.roots.map(r => (
-            <div key={r.id} className="flex items-center justify-between p-4 border rounded-xl bg-card">
+            <div key={r.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-xl bg-card">
               {editRootId === r.id ? (
-                <div className="flex flex-1 gap-2 mr-2">
+                <div className="flex flex-1 flex-col sm:flex-row gap-2 mr-2">
                   <Input value={editRootLabel} onChange={e => setEditRootLabel(e.target.value)} className="h-8 text-sm"
                     onKeyDown={e => e.key === 'Enter' && updateRoot.mutate()} autoFocus />
                   <Button size="sm" onClick={() => updateRoot.mutate()} disabled={updateRoot.isPending}>Save</Button>
@@ -179,10 +179,10 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input placeholder="Path (e.g. /data/videos)" value={newPath} onChange={e => setNewPath(e.target.value)} />
-          <Input placeholder="Label" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="w-32" />
-          <Button onClick={() => addRoot.mutate()} disabled={!newPath || !newLabel || addRoot.isPending} className="gap-1.5">
+          <Input placeholder="Label" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="sm:w-32" />
+          <Button onClick={() => addRoot.mutate()} disabled={!newPath || !newLabel || addRoot.isPending} className="gap-1.5 self-start">
             <Plus size={14} />Add
           </Button>
         </div>
@@ -195,12 +195,12 @@ export function SettingsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Index</h2>
         </div>
         <div className="p-4 border rounded-xl bg-card">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium text-sm">Full Rescan</p>
               <p className="text-xs text-muted-foreground mt-0.5">Re-index all storage roots</p>
             </div>
-            <Button onClick={() => startScan.mutate()} variant="outline" size="sm" disabled={startScan.isPending}>
+            <Button onClick={() => startScan.mutate()} variant="outline" size="sm" disabled={startScan.isPending} className="self-start">
               {startScan.isPending
                 ? <Loader2 size={14} className="mr-1.5 animate-spin" />
                 : <RefreshCw size={14} className="mr-1.5" />
@@ -224,12 +224,12 @@ export function SettingsPage() {
 
       {/* Libraries */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <BookOpen size={15} className="text-muted-foreground" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Libraries</h2>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setNewLibOpen(true)} className="gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => setNewLibOpen(true)} className="gap-1.5 self-start">
             <Plus size={14} />New Library
           </Button>
         </div>
@@ -238,7 +238,7 @@ export function SettingsPage() {
             <p className="text-sm text-muted-foreground py-4 text-center">No libraries yet</p>
           )}
           {libraries.map(lib => (
-            <div key={lib.id} className="flex items-center justify-between p-4 border rounded-xl bg-card">
+            <div key={lib.id} className="flex items-center justify-between gap-3 p-4 border rounded-xl bg-card">
               <p className="font-medium text-sm">{lib.icon} {lib.name}</p>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditLib(lib)}>

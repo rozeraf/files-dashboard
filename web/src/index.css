@@ -130,6 +130,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+#root {
+  min-height: 100dvh;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -141,6 +145,15 @@ body {
   transition-property: background-color, border-color, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Focus ring improvements */
@@ -169,6 +182,23 @@ body {
   body { overflow: hidden; height: 100%; overscroll-behavior: none; }
   /* Tap highlight */
   button, a { -webkit-tap-highlight-color: transparent; }
+
+  .safe-x {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+
+  .safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-bottom-offset {
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* Safe area padding for notched devices */

@@ -165,7 +165,7 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   return (
     <>
       <Sheet open={!!entryId} onOpenChange={o => !o && onClose()}>
-        <SheetContent className="w-full sm:w-[400px] overflow-y-auto">
+        <SheetContent className="safe-bottom w-full max-w-full overflow-y-auto sm:w-[400px]">
           <SheetHeader>
             <SheetTitle className="truncate text-base">{data.name}</SheetTitle>
           </SheetHeader>
@@ -183,7 +183,7 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
               <Button variant="outline" size="sm" onClick={() => toggleFav.mutate()} className="gap-1.5 h-8 text-xs">
                 {data.favorited ? <HeartOff size={13} /> : <Heart size={13} />}
                 {data.favorited ? 'Unfavorite' : 'Favorite'}
@@ -204,7 +204,7 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
               <div className="flex justify-between"><span className="text-muted-foreground text-xs">Size</span><span className="text-xs font-medium tabular-nums">{formatSize(data.size)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground text-xs">Modified</span><span className="text-xs font-medium">{formatDate(data.mtime)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground text-xs">Type</span><span className="text-xs font-medium font-mono">{data.mime || data.ext}</span></div>
-              <div className="flex justify-between gap-4"><span className="text-muted-foreground text-xs shrink-0">Path</span><span className="text-xs font-mono truncate">{data.rel_path}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground text-xs shrink-0">Path</span><span className="text-xs font-mono break-all text-right">{data.rel_path}</span></div>
             </div>
 
             {/* Categories */}

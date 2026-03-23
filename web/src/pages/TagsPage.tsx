@@ -42,12 +42,12 @@ export function TagsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tags</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{data.length} {data.length === 1 ? 'tag' : 'tags'}</p>
         </div>
-        <Button size="sm" onClick={openCreate} className="gap-1.5">
+        <Button size="sm" onClick={openCreate} className="gap-1.5 self-start">
           <Plus size={14} />New Tag
         </Button>
       </div>
@@ -70,7 +70,7 @@ export function TagsPage() {
                   {tag.name}
                 </Badge>
               </button>
-              <div className="hidden group-hover:flex gap-0.5">
+              <div className="flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(tag)}>
                   <Pencil size={11} />
                 </Button>

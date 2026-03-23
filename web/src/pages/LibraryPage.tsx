@@ -63,9 +63,9 @@ export function LibraryPage() {
       </div>
 
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Categories</h2>
-          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)} className="gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)} className="gap-1.5 self-start">
             <Plus size={14} />New Category
           </Button>
         </div>
@@ -90,7 +90,7 @@ export function LibraryPage() {
                   <p className="text-xs text-muted-foreground mt-1.5">{cat.children.length} subcategories</p>
                 )}
               </button>
-              <div className="absolute top-3 right-3 hidden group-hover:flex gap-0.5">
+              <div className="absolute top-3 right-3 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm" onClick={e => { e.stopPropagation(); openEditCat(cat) }}>
                   <Pencil size={12} />
                 </Button>

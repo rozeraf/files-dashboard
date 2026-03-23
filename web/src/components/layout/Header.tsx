@@ -40,7 +40,7 @@ export function Header() {
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
 
   return (
-    <header className="h-14 border-b px-3 sm:px-6 flex items-center gap-2 sm:gap-4 shrink-0 bg-background/80 backdrop-blur-sm">
+    <header className="safe-x safe-top sticky top-0 z-30 min-h-14 border-b px-3 py-2 sm:px-6 sm:py-0 flex items-center gap-2 sm:gap-4 shrink-0 bg-background/80 backdrop-blur-sm">
       <Button
         variant="ghost"
         size="icon"

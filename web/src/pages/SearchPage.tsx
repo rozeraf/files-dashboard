@@ -134,11 +134,11 @@ export function SearchPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">
           Search {params.q && <span className="text-muted-foreground font-normal text-lg">"{params.q}"</span>}
         </h1>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           {hasAnyParams && !saved && (
             <Button variant="outline" size="sm" onClick={() => { setSaveName(''); setSaveOpen(true) }} className="gap-1.5">
               <Bookmark size={14} />Save View
@@ -153,7 +153,7 @@ export function SearchPage() {
       </div>
 
       {/* Filter toggle button */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant={filtersOpen ? 'default' : 'outline'}
           size="sm"
