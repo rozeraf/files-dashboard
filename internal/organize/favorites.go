@@ -8,12 +8,18 @@ import (
 )
 
 func (s *Store) RecentEntries(limit int) ([]model.Entry, error) {
-	if limit == 0 {
-		limit = 50
-	}
-	rows, err := s.db.Query(`
+	query := `
 		SELECT id,root_id,rel_path,parent_rel_path,name,kind,size,mtime,ext,mime,missing,updated_at
-		FROM entries WHERE missing=0 ORDER BY updated_at DESC LIMIT ?`, limit)
+		FROM entries WHERE missing=0 ORDER BY updated_at DESC`
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if limit > 0 {
+		rows, err = s.db.Query(query+` LIMIT ?`, limit)
+	} else {
+		rows, err = s.db.Query(query)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -22,21 +28,24 @@ func (s *Store) RecentEntries(limit int) ([]model.Entry, error) {
 }
 
 func (s *Store) UncategorizedEntries(page, limit int) ([]model.Entry, int, error) {
-	if limit == 0 {
-		limit = 50
-	}
 	if page < 1 {
 		page = 1
 	}
-	offset := (page - 1) * limit
 
 	var total int
 	s.db.QueryRow(`SELECT COUNT(*) FROM entries WHERE missing=0 AND NOT EXISTS (SELECT 1 FROM entry_categories ec WHERE ec.entry_id=entries.id)`).Scan(&total)
 
-	rows, err := s.db.Query(`
+	query := `
 		SELECT id,root_id,rel_path,parent_rel_path,name,kind,size,mtime,ext,mime,missing,updated_at
 		FROM entries WHERE missing=0 AND NOT EXISTS (SELECT 1 FROM entry_categories ec WHERE ec.entry_id=entries.id)
-		ORDER BY name ASC LIMIT ? OFFSET ?`, limit, offset)
+		ORDER BY name ASC`
+	args := []any{}
+	if limit > 0 {
+		offset := (page - 1) * limit
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, offset)
+	}
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, 0, err
 	}

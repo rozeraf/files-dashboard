@@ -2,6 +2,7 @@
 package organize
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,13 +91,19 @@ func (s *Store) EntryTags(entryID string) ([]model.Tag, error) {
 
 // ListFavorites returns favorites ordered by created_at DESC.
 func (s *Store) ListFavorites(limit int) ([]model.Entry, error) {
-	if limit == 0 {
-		limit = 50
-	}
-	rows, err := s.db.Query(`
+	query := `
 		SELECT e.id,e.root_id,e.rel_path,e.parent_rel_path,e.name,e.kind,e.size,e.mtime,e.ext,e.mime,e.missing,e.updated_at
 		FROM entries e JOIN favorites f ON f.entry_id=e.id
-		ORDER BY f.created_at DESC LIMIT ?`, limit)
+		ORDER BY f.created_at DESC`
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if limit > 0 {
+		rows, err = s.db.Query(query+` LIMIT ?`, limit)
+	} else {
+		rows, err = s.db.Query(query)
+	}
 	if err != nil {
 		return nil, err
 	}

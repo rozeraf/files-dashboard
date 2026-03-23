@@ -60,22 +60,24 @@ func (s *Store) DeleteCollection(id string) error {
 }
 
 func (s *Store) CollectionEntries(collectionID string, page, limit int) ([]model.Entry, int, error) {
-	if limit == 0 {
-		limit = 50
-	}
 	if page < 1 {
 		page = 1
 	}
-	offset := (page - 1) * limit
 
 	var total int
 	s.db.QueryRow(`SELECT COUNT(*) FROM collection_entries WHERE collection_id=?`, collectionID).Scan(&total)
 
-	rows, err := s.db.Query(`
+	query := `
 		SELECT e.id,e.root_id,e.rel_path,e.parent_rel_path,e.name,e.kind,e.size,e.mtime,e.ext,e.mime,e.missing,e.updated_at
 		FROM entries e JOIN collection_entries ce ON ce.entry_id=e.id
-		WHERE ce.collection_id=? ORDER BY ce.position LIMIT ? OFFSET ?`,
-		collectionID, limit, offset)
+		WHERE ce.collection_id=? ORDER BY ce.position`
+	args := []any{collectionID}
+	if limit > 0 {
+		offset := (page - 1) * limit
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, offset)
+	}
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, 0, err
 	}

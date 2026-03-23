@@ -29,13 +29,9 @@ type SearchResult struct {
 }
 
 func (s *Syncer) Search(q string, p SearchParams) ([]model.Entry, error) {
-	if p.Limit == 0 {
-		p.Limit = 50
-	}
 	if p.Page < 1 {
 		p.Page = 1
 	}
-	offset := (p.Page - 1) * p.Limit
 
 	var joins []string
 	var wheres []string
@@ -113,7 +109,11 @@ func (s *Syncer) Search(q string, p SearchParams) ([]model.Entry, error) {
 	if len(wheres) > 0 {
 		query += " WHERE " + strings.Join(wheres, " AND ")
 	}
-	query += fmt.Sprintf(" ORDER BY e.name ASC LIMIT %d OFFSET %d", p.Limit, offset)
+	query += " ORDER BY e.name ASC"
+	if p.Limit > 0 {
+		offset := (p.Page - 1) * p.Limit
+		query += fmt.Sprintf(" LIMIT %d OFFSET %d", p.Limit, offset)
+	}
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {

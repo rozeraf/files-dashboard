@@ -8,14 +8,17 @@ import { Lightbox } from './Lightbox'
 
 interface Props {
   entries: Entry[]
+  lightboxEntries?: Entry[]
   onSelect?: (entry: Entry) => void
 }
 
-export function EntryTable({ entries, onSelect }: Props) {
+export function EntryTable({ entries, lightboxEntries, onSelect }: Props) {
   const { selectedIds, selectEntry } = useUI()
   const [lightboxId, setLightboxId] = useState<string | null>(null)
 
-  const mediaEntries = entries.filter(e => e.mime?.startsWith('image/') || e.mime?.startsWith('video/'))
+  const mediaEntries = (lightboxEntries ?? entries).filter(
+    e => e.mime?.startsWith('image/') || e.mime?.startsWith('video/')
+  )
 
   const handleClick = (e: React.MouseEvent, entry: Entry) => {
     if (e.shiftKey || e.metaKey) { selectEntry(entry.id, true); return }

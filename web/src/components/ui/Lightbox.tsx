@@ -1,17 +1,23 @@
 // web/src/components/ui/Lightbox.tsx
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState, useRef, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Entry, api } from '@/lib/api'
 import {
   X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   Play, Pause, Volume2, VolumeX, Maximize, Minimize,
-  SkipBack, SkipForward,
+  SkipBack, SkipForward, Loader2, AlertCircle, Film,
 } from 'lucide-react'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const isImg = (e: Entry) => e.mime?.startsWith('image/')
 const isVid = (e: Entry) => e.mime?.startsWith('video/')
+const isEditableTarget = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+
+const getBufferedEnd = (video: HTMLVideoElement) =>
+  video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0
 
 const fmt = (s: number) => {
   if (!isFinite(s) || isNaN(s)) return '0:00'
@@ -34,8 +40,8 @@ interface VideoPlayerProps {
 function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const onEndedRef = useRef<(() => void) | undefined>(undefined)
-  useEffect(() => { onEndedRef.current = onEnded }, [onEnded])
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const autoPlayPending = useRef(true)
 
   const [playing, setPlaying]         = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -47,37 +53,26 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
   const [ctrlsOn, setCtrlsOn]         = useState(true)
   const [fullscreen, setFullscreen]   = useState(false)
   const [flash, setFlash]             = useState<'play' | 'pause' | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [loadError, setLoadError]     = useState<string | null>(null)
 
-  // wire video events
   useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
-    const onPlay     = () => setPlaying(true)
-    const onPause    = () => setPlaying(false)
-    const onTime     = () => setCurrentTime(v.currentTime)
-    const onMeta     = () => { setDuration(v.duration); v.play() }
-    const onProg     = () => v.buffered.length && setBuffered(v.buffered.end(v.buffered.length - 1))
-    const onVol      = () => { setVolume(v.volume); setMuted(v.muted) }
-    const onEnd      = () => onEndedRef.current?.()
-    const onFulls    = () => setFullscreen(!!document.fullscreenElement)
-    v.addEventListener('play', onPlay)
-    v.addEventListener('pause', onPause)
-    v.addEventListener('timeupdate', onTime)
-    v.addEventListener('loadedmetadata', onMeta)
-    v.addEventListener('progress', onProg)
-    v.addEventListener('volumechange', onVol)
-    v.addEventListener('ended', onEnd)
+    const onFulls = () => setFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', onFulls)
-    return () => {
-      v.removeEventListener('play', onPlay)
-      v.removeEventListener('pause', onPause)
-      v.removeEventListener('timeupdate', onTime)
-      v.removeEventListener('loadedmetadata', onMeta)
-      v.removeEventListener('progress', onProg)
-      v.removeEventListener('volumechange', onVol)
-      v.removeEventListener('ended', onEnd)
-      document.removeEventListener('fullscreenchange', onFulls)
+    return () => document.removeEventListener('fullscreenchange', onFulls)
+  }, [])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (video) {
+      video.playbackRate = speed
     }
+  }, [speed])
+
+  useEffect(() => () => {
+    clearTimeout(hideTimer.current)
+    clearTimeout(flashTimer.current)
+    videoRef.current?.pause()
   }, [])
 
   // auto-hide controls
@@ -88,9 +83,36 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
   }, [])
 
   useEffect(() => {
-    if (!playing) { clearTimeout(hideTimer.current); setCtrlsOn(true) }
+    if (!playing || loading || loadError) {
+      clearTimeout(hideTimer.current)
+      setCtrlsOn(true)
+    }
     else bumpCtrls()
-  }, [playing, bumpCtrls])
+  }, [playing, loading, loadError, bumpCtrls])
+
+  const showFlash = useCallback((t: 'play' | 'pause') => {
+    clearTimeout(flashTimer.current)
+    setFlash(t)
+    flashTimer.current = setTimeout(() => setFlash(null), 500)
+  }, [])
+
+  const playVideo = useCallback((flashType?: 'play' | 'pause') => {
+    const v = videoRef.current
+    if (!v) return
+    autoPlayPending.current = false
+    const playPromise = v.play()
+    if (flashType) showFlash(flashType)
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        setPlaying(!v.paused)
+      })
+    }
+  }, [showFlash])
+
+  const attemptAutoPlay = useCallback(() => {
+    if (!autoPlayPending.current) return
+    playVideo()
+  }, [playVideo])
 
   const seekBy = (delta: number) => {
     const v = videoRef.current; if (!v) return
@@ -101,7 +123,7 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
   // keyboard (video-specific)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      if (isEditableTarget(e.target)) return
       if (e.key === ' ')           { e.preventDefault(); togglePlay() }
       if (e.key === 'ArrowLeft')   { e.preventDefault(); seekBy(-5) }
       if (e.key === 'ArrowRight')  { e.preventDefault(); seekBy(5) }
@@ -110,36 +132,49 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [])
+  })
 
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return
-    if (v.paused) { v.play(); showFlash('play') } else { v.pause(); showFlash('pause') }
+    if (loadError) return
+    if (v.paused) {
+      playVideo('play')
+    } else {
+      autoPlayPending.current = false
+      v.pause()
+      showFlash('pause')
+    }
+    bumpCtrls()
   }
-  const toggleMute = () => { if (videoRef.current) videoRef.current.muted = !videoRef.current.muted }
+  const toggleMute = () => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = !v.muted
+    bumpCtrls()
+  }
   const toggleFullscreen = () => {
     const container = videoRef.current?.parentElement?.parentElement
     if (!document.fullscreenElement) container?.requestFullscreen()
     else document.exitFullscreen()
+    bumpCtrls()
   }
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seek = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     if (videoRef.current) videoRef.current.currentTime = ratio * duration
+    bumpCtrls()
   }
-  const changeVol = (e: React.MouseEvent<HTMLDivElement>) => {
+  const changeVol = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const v = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0 }
+    bumpCtrls()
   }
   const cycleSpeed = () => {
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
     const next = speeds[(speeds.indexOf(speed) + 1) % speeds.length]
     setSpeed(next)
-    if (videoRef.current) videoRef.current.playbackRate = next
-  }
-  const showFlash = (t: 'play' | 'pause') => {
-    setFlash(t); setTimeout(() => setFlash(null), 500)
+    bumpCtrls()
   }
 
   const progPct = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -154,13 +189,65 @@ function VideoPlayer({ src, hasPrev, hasNext, onPrev, onNext, onEnded }: VideoPl
       {/* Video */}
       <video
         ref={videoRef}
-        key={src}
         src={src}
         className="max-h-full max-w-full"
         preload="auto"
+        playsInline
         onClick={togglePlay}
+        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+        onLoadedData={e => {
+          const v = e.currentTarget
+          setDuration(v.duration)
+          setBuffered(getBufferedEnd(v))
+          setLoading(false)
+          setLoadError(null)
+          attemptAutoPlay()
+        }}
+        onCanPlay={() => {
+          setLoading(false)
+          attemptAutoPlay()
+        }}
+        onWaiting={() => setLoading(true)}
+        onPlaying={e => {
+          setPlaying(true)
+          setLoading(false)
+          setLoadError(null)
+          setBuffered(getBufferedEnd(e.currentTarget))
+        }}
+        onPause={() => setPlaying(false)}
+        onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+        onDurationChange={e => setDuration(e.currentTarget.duration)}
+        onProgress={e => setBuffered(getBufferedEnd(e.currentTarget))}
+        onVolumeChange={e => {
+          setVolume(e.currentTarget.volume)
+          setMuted(e.currentTarget.muted)
+        }}
+        onEnded={onEnded}
+        onError={() => {
+          setLoading(false)
+          setLoadError('Unable to load this video.')
+          setCtrlsOn(true)
+        }}
         style={{ cursor: 'inherit' }}
       />
+
+      {loading && !loadError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm text-white/80 backdrop-blur-sm">
+            <Loader2 size={16} className="animate-spin" />
+            Loading video
+          </div>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-6">
+          <div className="flex max-w-sm items-center gap-3 rounded-2xl border border-white/10 bg-black/75 px-5 py-4 text-sm text-white/80 backdrop-blur-sm">
+            <AlertCircle size={18} className="shrink-0 text-white/60" />
+            <span>{loadError}</span>
+          </div>
+        </div>
+      )}
 
       {/* Flash indicator */}
       {flash && (
@@ -280,9 +367,18 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
   useEffect(() => { setCurrentId(activeId); setZoom(1) }, [activeId])
 
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
   // global keyboard
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return
       if (e.target instanceof HTMLVideoElement) return
       if (e.key === 'Escape') onClose()
       if (!video) {
@@ -360,6 +456,7 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
 
           {video && (
             <VideoPlayer
+              key={currentId}
               src={api.fs.raw(currentId)}
               hasPrev={idx > 0}
               hasNext={idx < entries.length - 1}
@@ -380,6 +477,7 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
           <div ref={queueRef} className="flex-1 overflow-y-auto">
             {entries.map((e, i) => {
               const active = e.id === currentId
+              const showVideoPreview = Math.abs(i - idx) <= 2
               return (
                 <button
                   key={e.id}
@@ -396,13 +494,25 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                         className="w-full h-full object-cover" loading="lazy" />
                     )}
                     {isVid(e) && (
-                      <>
-                        <video src={`${api.fs.raw(e.id)}#t=0.1`} className="w-full h-full object-cover"
-                          preload="metadata" muted playsInline />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Play size={14} className="fill-white text-white drop-shadow" />
+                      showVideoPreview ? (
+                        <>
+                          <video
+                            src={`${api.fs.raw(e.id)}#t=0.1`}
+                            className="w-full h-full object-cover"
+                            preload="metadata"
+                            muted
+                            playsInline
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <Play size={14} className="fill-white text-white drop-shadow" />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/70 text-white/50">
+                          <Film size={14} />
+                          <Play size={12} className="fill-current" />
                         </div>
-                      </>
+                      )
                     )}
                   </div>
 

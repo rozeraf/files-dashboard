@@ -14,8 +14,10 @@ export function HomePage() {
   const [detailId, setDetailId] = useState<string | null>(null)
 
   const { data: libraries } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
-  const { data: recent } = useQuery({ queryKey: ['recent'], queryFn: () => api.recent(12) })
-  const { data: favorites } = useQuery({ queryKey: ['favorites'], queryFn: () => api.favorites.list(12) })
+  const { data: recent } = useQuery({ queryKey: ['recent', 'preview'], queryFn: () => api.recent(12) })
+  const { data: recentAll } = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
+  const { data: favorites } = useQuery({ queryKey: ['favorites', 'preview'], queryFn: () => api.favorites.list(12) })
+  const { data: favoritesAll } = useQuery({ queryKey: ['favorites', 'all'], queryFn: () => api.favorites.list() })
 
   const scan = useMutation({
     mutationFn: api.scan.start,
@@ -79,7 +81,7 @@ export function HomePage() {
               View all<ArrowRight size={12} />
             </Button>
           </div>
-          <EntryGrid entries={recent} onSelect={e => setDetailId(e.id)} />
+          <EntryGrid entries={recent} lightboxEntries={recentAll ?? recent} onSelect={e => setDetailId(e.id)} />
         </section>
       )}
 
@@ -92,7 +94,7 @@ export function HomePage() {
               View all<ArrowRight size={12} />
             </Button>
           </div>
-          <EntryGrid entries={favorites} onSelect={e => setDetailId(e.id)} />
+          <EntryGrid entries={favorites} lightboxEntries={favoritesAll ?? favorites} onSelect={e => setDetailId(e.id)} />
         </section>
       )}
 

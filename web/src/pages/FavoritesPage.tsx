@@ -9,7 +9,7 @@ import { Heart } from 'lucide-react'
 export function FavoritesPage() {
   const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
-  const { data = [] } = useQuery({ queryKey: ['favorites'], queryFn: () => api.favorites.list(50) })
+  const { data = [] } = useQuery({ queryKey: ['favorites', 'all'], queryFn: () => api.favorites.list() })
   const invalidate = () => qc.invalidateQueries({ queryKey: ['favorites'] })
   return (
     <div className="space-y-6">
