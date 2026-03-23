@@ -466,15 +466,16 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
         {/* Top bar */}
         <div className="safe-top flex min-h-11 items-center gap-2 border-b border-white/5 px-3 py-1.5 sm:px-4 sm:py-0 sm:gap-3 shrink-0">
           <span className="text-white/40 text-xs sm:text-sm tabular-nums">{idx + 1} / {entries.length}</span>
-          <span className="text-white/80 text-xs sm:text-sm font-medium truncate flex-1">{entry.name}</span>
+          <span data-testid="lightbox-title" className="text-white/80 text-xs sm:text-sm font-medium truncate flex-1">{entry.name}</span>
 
           {entries.length > 1 && (
             <button
               type="button"
+              data-testid="lightbox-open-queue"
               onClick={() => setMobileQueueOpen(open => !open)}
               aria-expanded={mobileQueueOpen}
               aria-label={mobileQueueOpen ? 'Close queue' : 'Open queue'}
-              className="sm:hidden inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/75 transition-colors hover:bg-white/10"
+              className="sm:hidden inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 text-xs font-medium text-white shadow-sm transition-colors hover:bg-white/15"
             >
               <Film size={13} />
               <span>Queue</span>
@@ -491,7 +492,12 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
             </div>
           )}
 
-          <button onClick={onClose} className="p-1 text-white/40 hover:text-white transition-colors" title="Close (Esc)">
+          <button
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm transition-colors hover:bg-white/15 hover:text-white"
+            title="Close (Esc)"
+            aria-label="Close media viewer"
+          >
             <X size={18} />
           </button>
         </div>
@@ -506,6 +512,7 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
               >
                 <img
                   key={currentId}
+                  data-testid="lightbox-media-image"
                   src={api.fs.raw(currentId)}
                   alt={entry.name}
                   className="max-h-[calc(100vh-2.75rem)] max-w-full object-contain"
@@ -583,21 +590,19 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
         </div>
       )}
 
-      {entries.length > 1 && (
-        <div className="pointer-events-none absolute inset-0 z-20 sm:hidden">
+      {entries.length > 1 && mobileQueueOpen && (
+        <div className="fixed inset-0 z-[60] sm:hidden">
           <button
             type="button"
             aria-label="Close queue"
             onClick={() => setMobileQueueOpen(false)}
-            className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ${
-              mobileQueueOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-            }`}
+            className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
           />
 
           <div
-            className={`safe-bottom absolute inset-x-0 bottom-0 flex max-h-[min(60vh,32rem)] flex-col rounded-t-[1.75rem] border-t border-white/10 bg-[#141414]/95 shadow-2xl backdrop-blur-xl transition-transform duration-300 ${
-              mobileQueueOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full'
-            }`}
+            data-testid="lightbox-mobile-queue"
+            className="safe-bottom absolute inset-x-0 bottom-0 z-10 flex max-h-[min(68vh,34rem)] flex-col rounded-t-[1.75rem] border-t border-white/10 bg-[#141414]/95 shadow-2xl backdrop-blur-xl"
+            onClick={e => e.stopPropagation()}
           >
             <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/15" />
 
@@ -612,7 +617,8 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setMobileQueueOpen(false)}
-                className="rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Close queue"
               >
                 <X size={16} />
               </button>
@@ -627,6 +633,7 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                     key={e.id}
                     type="button"
                     data-active={active}
+                    data-testid="lightbox-queue-item"
                     onClick={() => {
                       setCurrentId(e.id)
                       setZoom(1)

@@ -12,6 +12,9 @@ const UNIQUE_FILE_NAME = 'needle-target.txt'
 const SECONDARY_FILE_NAME = 'summary-report.txt'
 const NESTED_DIR_NAME = 'folder-alpha'
 const NESTED_FILE_NAME = 'nested-note.txt'
+const PRIMARY_IMAGE_FILE_NAME = 'gallery-red.png'
+const SECONDARY_IMAGE_FILE_NAME = 'gallery-blue.png'
+const PNG_PIXEL_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z1lYAAAAASUVORK5CYII='
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(__dirname, '..', '..')
@@ -32,6 +35,8 @@ async function ensureFixtureTree() {
 
   await writeFile(join(rootDir, UNIQUE_FILE_NAME), 'playwright unique file\n')
   await writeFile(join(rootDir, SECONDARY_FILE_NAME), 'secondary report\n')
+  await writeFile(join(rootDir, PRIMARY_IMAGE_FILE_NAME), Buffer.from(PNG_PIXEL_BASE64, 'base64'))
+  await writeFile(join(rootDir, SECONDARY_IMAGE_FILE_NAME), Buffer.from(PNG_PIXEL_BASE64, 'base64'))
 
   const nestedDir = join(rootDir, NESTED_DIR_NAME)
   await mkdir(nestedDir, { recursive: true })

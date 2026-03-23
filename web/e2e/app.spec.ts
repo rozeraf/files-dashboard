@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   NESTED_DIR_NAME,
   NESTED_FILE_NAME,
+  PRIMARY_IMAGE_FILE_NAME,
+  SECONDARY_IMAGE_FILE_NAME,
   TEST_ROOT_LABEL,
   TOTAL_INDEXED_ENTRIES,
   UNIQUE_FILE_NAME,
@@ -72,5 +74,25 @@ test.describe('mobile navigation', () => {
     await page.getByRole('link', { name: 'Files' }).click()
     await expect(page).toHaveURL(/\/files$/)
     await expect(page.getByRole('heading', { name: 'Files', exact: true })).toBeVisible()
+  })
+
+  test('lightbox queue opens and switches media on mobile', async ({ page }) => {
+    await page.goto('/recent')
+
+    await visibleEntry(page, PRIMARY_IMAGE_FILE_NAME).click()
+    await expect(page.locator('[data-testid="lightbox-title"]')).toHaveText(PRIMARY_IMAGE_FILE_NAME)
+    await expect(page.locator('[data-testid="lightbox-media-image"]')).toHaveAttribute('alt', PRIMARY_IMAGE_FILE_NAME)
+
+    await page.locator('[data-testid="lightbox-open-queue"]').click()
+    await expect(page.locator('[data-testid="lightbox-mobile-queue"]')).toBeVisible()
+
+    await page
+      .locator('[data-testid="lightbox-queue-item"]')
+      .filter({ hasText: SECONDARY_IMAGE_FILE_NAME })
+      .click()
+
+    await expect(page.locator('[data-testid="lightbox-mobile-queue"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="lightbox-title"]')).toHaveText(SECONDARY_IMAGE_FILE_NAME)
+    await expect(page.locator('[data-testid="lightbox-media-image"]')).toHaveAttribute('alt', SECONDARY_IMAGE_FILE_NAME)
   })
 })

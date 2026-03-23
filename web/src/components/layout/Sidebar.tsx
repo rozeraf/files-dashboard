@@ -51,7 +51,7 @@ export function Sidebar() {
         <button
           onClick={() => setSidebarOpen(false)}
           aria-label="Close navigation"
-          className="md:hidden p-1 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+          className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sidebar-border/70 bg-sidebar-accent/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent"
         >
           <X size={16} />
         </button>
