@@ -7,13 +7,24 @@ import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { LayoutGrid, List } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function RecentPage() {
   const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'table'>('grid')
-  const { data = [] } = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
+  const recentQuery = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
+  const data = recentQuery.data ?? []
   const invalidate = () => qc.invalidateQueries({ queryKey: ['recent'] })
+
+  if (recentQuery.isPending) {
+    return <LoadingState title="Loading recent files" description="Fetching the latest changes across your library." />
+  }
+
+  if (recentQuery.error) {
+    return <ErrorState title="Couldn't load recent files" error={recentQuery.error} onRetry={() => void recentQuery.refetch()} />
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -26,7 +37,13 @@ export function RecentPage() {
           <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('table')}><List size={15} /></Button>
         </div>
       </div>
-      {view === 'grid'
+      {data.length === 0 ? (
+        <EmptyState
+          compact
+          title="No recent files yet"
+          description="Modified items will appear here after your first scan or after changes on disk."
+        />
+      ) : view === 'grid'
         ? <EntryGrid entries={data} onSelect={e => setDetailId(e.id)} />
         : <EntryTable entries={data} onSelect={e => setDetailId(e.id)} />
       }

@@ -6,17 +6,21 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useState } from 'react'
 import { Trash2, Plus, RefreshCw, Pencil, AlertTriangle, Loader2, HardDrive, BookOpen, Settings2, RotateCcw } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function SettingsPage() {
   const qc = useQueryClient()
-  const { data: config } = useQuery({ queryKey: ['config'], queryFn: api.config.get })
-  const { data: libraries = [] } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
+  const configQuery = useQuery({ queryKey: ['config'], queryFn: api.config.get })
+  const librariesQuery = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
+  const config = configQuery.data
+  const libraries = librariesQuery.data ?? []
 
   // Roots
   const [newPath, setNewPath] = useState('')
   const [newLabel, setNewLabel] = useState('')
   const [editRootId, setEditRootId] = useState<string | null>(null)
   const [editRootLabel, setEditRootLabel] = useState('')
+  const [deleteRootTarget, setDeleteRootTarget] = useState<{ id: string; label: string } | null>(null)
 
   // Scan
   const [scanJobId, setScanJobId] = useState<string | null>(null)
@@ -61,6 +65,7 @@ export function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['config'] })
       qc.invalidateQueries({ queryKey: ['roots'] })
+      setDeleteRootTarget(null)
     },
   })
 
@@ -120,6 +125,23 @@ export function SettingsPage() {
   const openEditLib = (lib: Library) => { setEditLib(lib); setEditLibName(lib.name); setEditLibIcon(lib.icon) }
   const openEditRoot = (id: string, label: string) => { setEditRootId(id); setEditRootLabel(label) }
 
+  if (configQuery.isPending || librariesQuery.isPending) {
+    return <LoadingState title="Loading settings" description="Preparing app configuration, roots, and libraries." />
+  }
+
+  if (configQuery.error || librariesQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load settings"
+        error={configQuery.error ?? librariesQuery.error}
+        onRetry={() => {
+          void configQuery.refetch()
+          void librariesQuery.refetch()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl space-y-8">
       <div>
@@ -170,7 +192,7 @@ export function SettingsPage() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditRoot(r.id, r.label)}>
                       <Pencil size={13} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deleteRoot.mutate(r.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteRootTarget({ id: r.id, label: r.label })}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -296,6 +318,26 @@ export function SettingsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewLibOpen(false)}>Cancel</Button>
             <Button onClick={() => createLib.mutate()} disabled={!newLibName || createLib.isPending}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete root dialog */}
+      <Dialog open={!!deleteRootTarget} onOpenChange={o => !o && setDeleteRootTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Remove "{deleteRootTarget?.label}"?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The storage root will be removed from the app configuration. Files on disk are not deleted.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRootTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteRootTarget && deleteRoot.mutate(deleteRootTarget.id)}
+              disabled={deleteRoot.isPending}
+            >
+              Remove Root
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

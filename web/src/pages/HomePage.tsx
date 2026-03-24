@@ -7,17 +7,25 @@ import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { useState } from 'react'
 import { RefreshCw, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function HomePage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
 
-  const { data: libraries } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
-  const { data: recent } = useQuery({ queryKey: ['recent', 'preview'], queryFn: () => api.recent(12) })
-  const { data: recentAll } = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
-  const { data: favorites } = useQuery({ queryKey: ['favorites', 'preview'], queryFn: () => api.favorites.list(12) })
-  const { data: favoritesAll } = useQuery({ queryKey: ['favorites', 'all'], queryFn: () => api.favorites.list() })
+  const librariesQuery = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
+  const recentQuery = useQuery({ queryKey: ['recent', 'preview'], queryFn: () => api.recent(12) })
+  const recentAllQuery = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
+  const favoritesQuery = useQuery({ queryKey: ['favorites', 'preview'], queryFn: () => api.favorites.list(12) })
+  const favoritesAllQuery = useQuery({ queryKey: ['favorites', 'all'], queryFn: () => api.favorites.list() })
+
+  const libraries = librariesQuery.data ?? []
+  const recent = recentQuery.data ?? []
+  const recentAll = recentAllQuery.data
+  const favorites = favoritesQuery.data ?? []
+  const favoritesAll = favoritesAllQuery.data
+  const homeError = librariesQuery.error ?? recentQuery.error ?? favoritesQuery.error
 
   const scan = useMutation({
     mutationFn: api.scan.start,
@@ -27,6 +35,29 @@ export function HomePage() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['recent'] })
     qc.invalidateQueries({ queryKey: ['favorites'] })
+  }
+
+  if (librariesQuery.isPending || recentQuery.isPending || favoritesQuery.isPending) {
+    return (
+      <LoadingState
+        title="Loading dashboard"
+        description="Preparing your libraries, recent files, and favorites."
+      />
+    )
+  }
+
+  if (homeError) {
+    return (
+      <ErrorState
+        title="Couldn't load the dashboard"
+        error={homeError}
+        onRetry={() => {
+          void librariesQuery.refetch()
+          void recentQuery.refetch()
+          void favoritesQuery.refetch()
+        }}
+      />
+    )
   }
 
   return (
@@ -99,14 +130,16 @@ export function HomePage() {
       )}
 
       {/* Empty state */}
-      {!libraries?.length && !recent?.length && (
-        <div className="text-center py-20">
-          <p className="text-lg font-medium text-muted-foreground">No files indexed yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Add a storage root in Settings, then run a scan.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/settings')}>
-            Go to Settings
-          </Button>
-        </div>
+      {!libraries.length && !recent.length && (
+        <EmptyState
+          title="No files indexed yet"
+          description="Add a storage root in Settings, then run a scan to populate the dashboard."
+          action={
+            <Button variant="outline" onClick={() => navigate('/settings')}>
+              Go to Settings
+            </Button>
+          }
+        />
       )}
 
       <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { LayoutGrid, List, Bookmark, Filter, X, ChevronDown } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 const FILTER_KEYS = ['libraryId', 'categoryId', 'tags', 'ext', 'kind', 'since', 'size_min', 'size_max', 'status'] as const
 
@@ -118,11 +119,12 @@ export function SearchPage() {
   }, [selectedTagIds, setParam])
 
   // --- Search query ---
-  const { data = [], isLoading } = useQuery({
+  const searchQuery = useQuery({
     queryKey: ['search', params],
     queryFn: () => api.search(params),
     enabled: Object.keys(params).length > 0,
   })
+  const data = searchQuery.data ?? []
 
   const saveView = useMutation({
     mutationFn: () => api.savedViews.create(saveName, params),
@@ -340,15 +342,40 @@ export function SearchPage() {
       )}
 
       {/* Results */}
-      {isLoading && <p className="text-muted-foreground">Searching...</p>}
-      {!isLoading && data.length === 0 && hasAnyParams && (
-        <p className="text-muted-foreground">No results.</p>
+      {!hasAnyParams && (
+        <EmptyState
+          compact
+          title="Start with a search or filter"
+          description="Use the header search, then refine the result set with filters like library, tags, type, size, or date."
+        />
       )}
 
-      {view === 'grid'
-        ? <EntryGrid entries={data} onSelect={e => setDetailId(e.id)} />
-        : <EntryTable entries={data} onSelect={e => setDetailId(e.id)} />
-      }
+      {hasAnyParams && searchQuery.isPending && (
+        <LoadingState compact title="Searching" description="Applying filters and scanning the index." />
+      )}
+
+      {hasAnyParams && searchQuery.error && (
+        <ErrorState
+          compact
+          title="Search failed"
+          error={searchQuery.error}
+          onRetry={() => void searchQuery.refetch()}
+        />
+      )}
+
+      {hasAnyParams && !searchQuery.isPending && !searchQuery.error && data.length === 0 && (
+        <EmptyState
+          compact
+          title="No results"
+          description="Try widening the query, clearing filters, or changing the date and size constraints."
+        />
+      )}
+
+      {hasAnyParams && !searchQuery.isPending && !searchQuery.error && data.length > 0 && (
+        view === 'grid'
+          ? <EntryGrid entries={data} onSelect={e => setDetailId(e.id)} />
+          : <EntryTable entries={data} onSelect={e => setDetailId(e.id)} />
+      )}
 
       <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
         onDeleted={() => { setDetailId(null); qc.invalidateQueries({ queryKey: ['search'] }) }}

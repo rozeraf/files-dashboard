@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Pencil, Trash2, Library } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function CollectionsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { data = [] } = useQuery({ queryKey: ['collections'], queryFn: api.collections.list })
+  const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections.list })
+  const data = collectionsQuery.data ?? []
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editCol, setEditCol] = useState<Collection | null>(null)
@@ -39,6 +41,14 @@ export function CollectionsPage() {
   const openCreate = () => { setName(''); setDesc(''); setCreateOpen(true) }
   const openEdit = (col: Collection) => { setEditCol(col); setName(col.name); setDesc(col.description) }
 
+  if (collectionsQuery.isPending) {
+    return <LoadingState title="Loading collections" description="Gathering your curated file groups." />
+  }
+
+  if (collectionsQuery.error) {
+    return <ErrorState title="Couldn't load collections" error={collectionsQuery.error} onRetry={() => void collectionsQuery.refetch()} />
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -52,11 +62,11 @@ export function CollectionsPage() {
       </div>
 
       {data.length === 0 ? (
-        <div className="text-center py-20">
-          <Library size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No collections yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Create collections to group related files together</p>
-        </div>
+        <EmptyState
+          title="No collections yet"
+          description="Create collections to group related files together."
+          icon={<Library size={22} />}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {data.map(col => (

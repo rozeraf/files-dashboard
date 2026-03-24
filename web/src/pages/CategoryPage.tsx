@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LayoutGrid, List, Pencil, Trash2, Upload, FilePlus, FolderPlus } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
@@ -44,26 +45,29 @@ export function CategoryPage() {
   const [createContent, setCreateContent] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
+  const rootsQuery = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
 
-  const { data: subcategories = [] } = useQuery({
+  const subcategoriesQuery = useQuery({
     queryKey: ['subcategories', categoryId],
     queryFn: () => api.categories.subcategories(categoryId!),
     enabled: !!categoryId,
   })
 
-  const { data: category } = useQuery({
+  const categoryQuery = useQuery({
     queryKey: ['category', categoryId],
     queryFn: () => api.categories.get(categoryId!),
     enabled: !!categoryId,
   })
 
-  const { data } = useQuery({
+  const entriesQuery = useQuery({
     queryKey: ['category-entries', categoryId],
     queryFn: () => api.categories.entries(categoryId!),
     enabled: !!categoryId,
   })
-  const entries = data?.items ?? []
+  const roots = rootsQuery.data ?? []
+  const subcategories = subcategoriesQuery.data ?? []
+  const category = categoryQuery.data
+  const entries = entriesQuery.data?.items ?? []
 
   const invalidateEntries = () => qc.invalidateQueries({ queryKey: ['category-entries', categoryId] })
 
@@ -139,6 +143,24 @@ export function CategoryPage() {
       navigate(-1)
     },
   })
+
+  if (categoryQuery.isPending || subcategoriesQuery.isPending || entriesQuery.isPending) {
+    return <LoadingState title="Loading category" description="Preparing subcategories and assigned files." />
+  }
+
+  if (categoryQuery.error || subcategoriesQuery.error || entriesQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load this category"
+        error={categoryQuery.error ?? subcategoriesQuery.error ?? entriesQuery.error}
+        onRetry={() => {
+          void categoryQuery.refetch()
+          void subcategoriesQuery.refetch()
+          void entriesQuery.refetch()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">

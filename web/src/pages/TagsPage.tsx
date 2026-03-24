@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Pencil, Trash2, Tag as TagIcon } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function TagsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { data = [] } = useQuery({ queryKey: ['tags'], queryFn: api.tags.list })
+  const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: api.tags.list })
+  const data = tagsQuery.data ?? []
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editTag, setEditTag] = useState<Tag | null>(null)
@@ -40,6 +42,14 @@ export function TagsPage() {
   const openEdit = (tag: Tag) => { setEditTag(tag); setName(tag.name); setColor(tag.color || '#d97706') }
   const openCreate = () => { setName(''); setColor('#d97706'); setCreateOpen(true) }
 
+  if (tagsQuery.isPending) {
+    return <LoadingState title="Loading tags" description="Fetching your tag library and colors." />
+  }
+
+  if (tagsQuery.error) {
+    return <ErrorState title="Couldn't load tags" error={tagsQuery.error} onRetry={() => void tagsQuery.refetch()} />
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -53,11 +63,11 @@ export function TagsPage() {
       </div>
 
       {data.length === 0 ? (
-        <div className="text-center py-20">
-          <TagIcon size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No tags yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Create tags to organize your files</p>
-        </div>
+        <EmptyState
+          title="No tags yet"
+          description="Create tags to organize your files."
+          icon={<TagIcon size={22} />}
+        />
       ) : (
         <div className="flex flex-wrap gap-2">
           {data.map(tag => (

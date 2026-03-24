@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { ErrorState } from '@/components/ui/state'
 import {
   Trash2,
   Pencil,
@@ -65,7 +66,7 @@ export function SavedViewsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const { data: views = [], isLoading } = useQuery({
+  const { data: views = [], isLoading, error, refetch } = useQuery({
     queryKey: ['saved-views'],
     queryFn: api.savedViews.list,
   })
@@ -144,6 +145,16 @@ export function SavedViewsPage() {
           ))}
         </div>
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Couldn't load saved views"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     )
   }
 

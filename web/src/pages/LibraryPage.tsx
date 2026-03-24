@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function LibraryPage() {
   const { libraryId } = useParams<{ libraryId: string }>()
@@ -21,16 +22,18 @@ export function LibraryPage() {
   const [editCatName, setEditCatName] = useState('')
   const [deleteCat, setDeleteCat] = useState<Category | null>(null)
 
-  const { data: library } = useQuery({
+  const libraryQuery = useQuery({
     queryKey: ['library', libraryId],
     queryFn: () => api.libraries.get(libraryId!),
     enabled: !!libraryId,
   })
-  const { data: tree = [] } = useQuery({
+  const treeQuery = useQuery({
     queryKey: ['categories', libraryId],
     queryFn: () => api.libraries.categories(libraryId!),
     enabled: !!libraryId,
   })
+  const library = libraryQuery.data
+  const tree = treeQuery.data ?? []
 
   const invalidateCats = () => qc.invalidateQueries({ queryKey: ['categories', libraryId] })
 
@@ -54,6 +57,23 @@ export function LibraryPage() {
   })
 
   const openEditCat = (cat: Category) => { setEditCat(cat); setEditCatName(cat.name) }
+
+  if (libraryQuery.isPending || treeQuery.isPending) {
+    return <LoadingState title="Loading library" description="Preparing categories and library details." />
+  }
+
+  if (libraryQuery.error || treeQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load this library"
+        error={libraryQuery.error ?? treeQuery.error}
+        onRetry={() => {
+          void libraryQuery.refetch()
+          void treeQuery.refetch()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">

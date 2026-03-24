@@ -7,14 +7,25 @@ import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { LayoutGrid, List, HelpCircle } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function UncategorizedPage() {
   const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'table'>('grid')
-  const { data } = useQuery({ queryKey: ['uncategorized'], queryFn: () => api.uncategorized() })
+  const uncategorizedQuery = useQuery({ queryKey: ['uncategorized'], queryFn: () => api.uncategorized() })
+  const data = uncategorizedQuery.data
   const entries = data?.items ?? []
   const invalidate = () => qc.invalidateQueries({ queryKey: ['uncategorized'] })
+
+  if (uncategorizedQuery.isPending) {
+    return <LoadingState title="Loading uncategorized files" description="Checking which items still need a category." />
+  }
+
+  if (uncategorizedQuery.error) {
+    return <ErrorState title="Couldn't load uncategorized files" error={uncategorizedQuery.error} onRetry={() => void uncategorizedQuery.refetch()} />
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -28,10 +39,11 @@ export function UncategorizedPage() {
         </div>
       </div>
       {entries.length === 0 ? (
-        <div className="text-center py-20">
-          <HelpCircle size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">All files are categorized</p>
-        </div>
+        <EmptyState
+          title="All files are categorized"
+          description="Nothing needs attention here right now."
+          icon={<HelpCircle size={22} />}
+        />
       ) : view === 'grid'
         ? <EntryGrid entries={entries} onSelect={e => setDetailId(e.id)} />
         : <EntryTable entries={entries} onSelect={e => setDetailId(e.id)} />

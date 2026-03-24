@@ -11,6 +11,7 @@ import {
 import { useState, useRef, useCallback } from 'react'
 import { X, GripVertical, Pencil, ChevronUp, ChevronDown } from 'lucide-react'
 import { formatSize, formatDate, mimeToIcon, cn } from '@/lib/utils'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function CollectionDetailPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
@@ -35,19 +36,20 @@ export function CollectionDetailPage() {
 
   // ── Queries ──────────────────────────────────────────────
 
-  const { data: col } = useQuery({
+  const collectionQuery = useQuery({
     queryKey: ['collection', collectionId],
     queryFn: () => api.collections.get(collectionId!),
     enabled: !!collectionId,
   })
 
-  const { data } = useQuery({
+  const entriesQuery = useQuery({
     queryKey: ['collection-entries', collectionId],
     queryFn: () => api.collections.entries(collectionId!),
     enabled: !!collectionId,
   })
+  const col = collectionQuery.data
 
-  const entries: Entry[] = data?.items ?? []
+  const entries: Entry[] = entriesQuery.data?.items ?? []
 
   // ── Mutations ────────────────────────────────────────────
 
@@ -173,6 +175,23 @@ export function CollectionDetailPage() {
   )
 
   // ── Render ───────────────────────────────────────────────
+
+  if (collectionQuery.isPending || entriesQuery.isPending) {
+    return <LoadingState title="Loading collection" description="Gathering collection details and ordered entries." />
+  }
+
+  if (collectionQuery.error || entriesQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load this collection"
+        error={collectionQuery.error ?? entriesQuery.error}
+        onRetry={() => {
+          void collectionQuery.refetch()
+          void entriesQuery.refetch()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

@@ -2,14 +2,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Entry } from '@/lib/api'
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ChevronRight, FolderPlus, Upload, Pencil, Trash2, HardDrive } from 'lucide-react'
 import { formatSize, formatDate, mimeToIcon, cn } from '@/lib/utils'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function FilesPage() {
+  const navigate = useNavigate()
   const [rootId, setRootId] = useState<string | null>(null)
   const [path, setPath] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -23,12 +26,14 @@ export function FilesPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['fs-entries', rootId, path] })
 
-  const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
-  const { data: entries = [] } = useQuery({
+  const rootsQuery = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
+  const entriesQuery = useQuery({
     queryKey: ['fs-entries', rootId, path],
     queryFn: () => api.fs.list(rootId!, path),
     enabled: !!rootId,
   })
+  const roots = rootsQuery.data ?? []
+  const entries = entriesQuery.data ?? []
 
   const mkdir = useMutation({
     mutationFn: () => api.fs.mkdir(rootId!, path, mkdirName),
@@ -54,6 +59,14 @@ export function FilesPage() {
 
   const openRename = (e: Entry) => { setRenameEntry(e); setRenameName(e.name) }
   const breadcrumbs = path.split('/').filter(Boolean)
+
+  if (rootsQuery.isPending) {
+    return <LoadingState title="Loading storage roots" description="Preparing the file browser." />
+  }
+
+  if (rootsQuery.error) {
+    return <ErrorState title="Couldn't load storage roots" error={rootsQuery.error} onRetry={() => void rootsQuery.refetch()} />
+  }
 
   return (
     <div className="space-y-4">
@@ -111,10 +124,21 @@ export function FilesPage() {
           </div>
 
           {/* File table */}
-          {entries.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <p className="text-sm">This folder is empty</p>
-            </div>
+          {entriesQuery.isPending ? (
+            <LoadingState compact title="Loading folder" description="Fetching files for this location." />
+          ) : entriesQuery.error ? (
+            <ErrorState
+              compact
+              title="Couldn't load this folder"
+              error={entriesQuery.error}
+              onRetry={() => void entriesQuery.refetch()}
+            />
+          ) : entries.length === 0 ? (
+            <EmptyState
+              compact
+              title="This folder is empty"
+              description="Upload files or create a folder to start organizing this location."
+            />
           ) : (
             <>
             <div className="space-y-2 sm:hidden">
@@ -199,15 +223,23 @@ export function FilesPage() {
       )}
 
       {!rootId && roots.length > 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">Select a storage root to browse files</p>
-        </div>
+        <EmptyState
+          compact
+          title="Select a storage root"
+          description="Choose one of your configured roots above to start browsing files."
+        />
       )}
 
       {!rootId && roots.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">No storage roots configured. Add one in Settings.</p>
-        </div>
+        <EmptyState
+          title="No storage roots configured"
+          description="Add at least one storage root in Settings to use the file browser."
+          action={
+            <Button variant="outline" onClick={() => navigate('/settings')}>
+              Go to Settings
+            </Button>
+          }
+        />
       )}
 
       {/* Dialogs */}
