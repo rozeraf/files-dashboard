@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Heart, HeartOff, Pencil, Trash2, Tag, FolderOpen, Library } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 interface Props {
   entryId: string | null
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Props) {
+  if (!entryId) return null
+
   const qc = useQueryClient()
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')
@@ -29,11 +32,12 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   const [colOpen, setColOpen] = useState(false)
   const [colId, setColId] = useState('')
 
-  const { data } = useQuery({
+  const entryQuery = useQuery({
     queryKey: ['entry', entryId],
     queryFn: () => api.entries.get(entryId!),
     enabled: !!entryId,
   })
+  const data = entryQuery.data
 
   // For category assignment dialog
   const { data: libraries = [] } = useQuery({
@@ -155,7 +159,36 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
 
   const openRename = () => { setRenameName(data?.name ?? ''); setRenameOpen(true) }
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <Sheet open onOpenChange={o => !o && onClose()}>
+        <SheetContent className="safe-bottom w-full max-w-full overflow-y-auto sm:w-[400px]">
+          <SheetHeader>
+            <SheetTitle className="truncate text-base">File details</SheetTitle>
+          </SheetHeader>
+
+          {entryQuery.isPending && (
+            <LoadingState
+              compact
+              className="mt-4"
+              title="Loading details"
+              description="Fetching metadata and available actions for this item."
+            />
+          )}
+
+          {entryQuery.error && (
+            <ErrorState
+              compact
+              className="mt-4"
+              title="Couldn't load this item"
+              error={entryQuery.error}
+              onRetry={() => void entryQuery.refetch()}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+    )
+  }
 
   const isImage = data.mime.startsWith('image/')
   const isVideo = data.mime.startsWith('video/')
