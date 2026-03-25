@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LayoutGrid, List, Pencil, Trash2, Upload, FilePlus, FolderPlus } from 'lucide-react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { usePasteUpload, asFileList } from '@/hooks/usePasteUpload'
 
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
@@ -124,6 +125,11 @@ export function CategoryPage() {
       setCreating(false)
     }
   }
+
+  usePasteUpload(
+    files => handleUpload(asFileList(files)),
+    uploadOpen && !!uploadRootId,
+  )
 
   const openRename = () => { setRenameName(category?.name ?? ''); setRenameOpen(true) }
 
@@ -245,6 +251,9 @@ export function CategoryPage() {
               onChange={e => handleUpload(e.target.files)}
             />
             {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+            {!uploading && uploadRootId && (
+              <p className="text-xs text-muted-foreground">or paste Ctrl+V to upload from clipboard</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadOpen(false)}>Close</Button>
