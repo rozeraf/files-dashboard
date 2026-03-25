@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ChevronRight, FolderPlus, Upload, Pencil, Trash2, HardDrive } from 'lucide-react'
 import { formatSize, formatDate, mimeToIcon, cn } from '@/lib/utils'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
+import { usePasteUpload, asFileList } from '@/hooks/usePasteUpload'
 
 export function FilesPage() {
   const navigate = useNavigate()
@@ -56,6 +57,8 @@ export function FilesPage() {
       Array.from(files).map(file => api.fs.upload(rootId, path, file))
     ).then(invalidate)
   }
+
+  usePasteUpload(files => handleUpload(asFileList(files)), !!rootId)
 
   const openRename = (e: Entry) => { setRenameEntry(e); setRenameName(e.name) }
   const breadcrumbs = path.split('/').filter(Boolean)
@@ -110,6 +113,9 @@ export function FilesPage() {
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => fileInputRef.current?.click()}>
                 <Upload size={13} /><span className="hidden xs:inline">Upload</span>
               </Button>
+              {rootId && (
+                <span className="text-xs text-muted-foreground hidden sm:inline whitespace-nowrap">or paste Ctrl+V</span>
+              )}
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => setMkdirOpen(true)}>
                 <FolderPlus size={13} /><span className="hidden xs:inline">New Folder</span>
               </Button>
