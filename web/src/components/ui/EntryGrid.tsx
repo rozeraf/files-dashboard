@@ -6,6 +6,38 @@ import { cn } from '@/lib/utils'
 import { Lightbox } from './Lightbox'
 import { isImageEntry, isVideoEntry, useMediaViewer } from './useMediaViewer'
 import { Play, Check } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+
+function VideoThumbnail({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.src = src + '#t=0.1'
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [src])
+
+  return (
+    <video
+      ref={ref}
+      className="w-full h-full object-cover"
+      preload="metadata"
+      muted
+      playsInline
+    />
+  )
+}
 
 interface Props {
   entries: Entry[]
@@ -65,13 +97,7 @@ export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
                   />
                 ) : isVideo ? (
                   <>
-                    <video
-                      src={`${api.fs.raw(entry.id)}#t=0.1`}
-                      className="w-full h-full object-cover"
-                      preload="metadata"
-                      muted
-                      playsInline
-                    />
+                    <VideoThumbnail src={api.fs.raw(entry.id)} />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
                       <div className="bg-black/60 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
                         <Play size={20} className="fill-white text-white ml-0.5" />

@@ -431,12 +431,11 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                     <video
                       key={entry.id}
                       ref={videoRef}
-                      src={api.fs.raw(entry.id)}
                       className="max-h-full max-w-full rounded-2xl bg-black shadow-2xl"
                       controls
                       autoPlay
                       playsInline
-                      preload="metadata"
+                      preload="auto"
                       onLoadStart={() => {
                         setVideoLoading(true)
                         setVideoError(null)
@@ -455,7 +454,9 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                         setVideoLoading(false)
                         setVideoError('Failed to load this video.')
                       }}
-                    />
+                    >
+                      <source src={api.fs.raw(entry.id)} type={entry.mime} />
+                    </video>
                   </div>
                 </div>
               )}
