@@ -85,7 +85,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.create(newLibName, newLibIcon),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setNewLibOpen(false); setNewLibName(''); setNewLibIcon('📁')
     },
   })
@@ -94,7 +93,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.update(editLib!.id, { name: editLibName, icon: editLibIcon }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setEditLib(null)
     },
   })
@@ -103,7 +101,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.delete(deleteLib!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setDeleteLib(null)
     },
   })

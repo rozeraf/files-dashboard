@@ -48,7 +48,7 @@ function QueuePreview({ entry, active }: { entry: Entry; active: boolean }) {
     >
       {isImage ? (
         <img
-          src={api.fs.raw(entry.id)}
+          src={api.fs.thumb(entry.id)}
           alt={entry.name}
           className="h-full w-full object-cover"
           loading="lazy"

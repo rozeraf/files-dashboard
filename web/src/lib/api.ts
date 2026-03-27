@@ -54,6 +54,7 @@ export const api = {
   fs: {
     list: (rootId: string, path = '') => get<Entry[]>(`/fs/roots/${rootId}/entries?path=${encodeURIComponent(path)}`),
     raw: (id: string) => `/api/fs/entries/${id}/raw`,
+    thumb: (id: string) => `/api/fs/entries/${id}/thumb`,
     rename: (id: string, name: string) => post<void>(`/fs/entries/${id}/rename`, { name }),
     move: (ids: string[], destRootId: string, destRelPath: string) =>
       post<void>('/fs/entries/move', { ids, destRootId, destRelPath }),

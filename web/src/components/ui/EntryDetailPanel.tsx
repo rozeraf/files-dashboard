@@ -22,7 +22,17 @@ interface Props {
 
 export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Props) {
   if (!entryId) return null
+  return <EntryDetailPanelContent entryId={entryId} onClose={onClose} onDeleted={onDeleted} onRenamed={onRenamed} />
+}
 
+interface ContentProps {
+  entryId: string
+  onClose: () => void
+  onDeleted?: () => void
+  onRenamed?: () => void
+}
+
+function EntryDetailPanelContent({ entryId, onClose, onDeleted, onRenamed }: ContentProps) {
   const qc = useQueryClient()
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')

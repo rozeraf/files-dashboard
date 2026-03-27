@@ -8,6 +8,28 @@ import { isImageEntry, isVideoEntry, useMediaViewer } from './useMediaViewer'
 import { Play, Check } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
+function LazyImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const ref = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.src = src
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [src])
+
+  return <img ref={ref} alt={alt} className={className} />
+}
+
 function VideoThumbnail({ src }: { src: string }) {
   const ref = useRef<HTMLVideoElement>(null)
 
@@ -89,11 +111,10 @@ export function EntryGrid({ entries, lightboxEntries, onSelect }: Props) {
             >
               <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden relative">
                 {isImage ? (
-                  <img
-                    src={api.fs.raw(entry.id)}
+                  <LazyImage
+                    src={api.fs.thumb(entry.id)}
                     alt={entry.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy"
                   />
                 ) : isVideo ? (
                   <>
