@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   Film,
   Pause,
   Play,
@@ -15,7 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { isImageEntry, isVideoEntry } from './useMediaViewer'
+import { isImageEntry, isVideoEntry, isTextEntry } from './useMediaViewer'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
@@ -38,6 +39,8 @@ function isEditableTarget(target: EventTarget | null) {
 
 function QueuePreview({ entry, active }: { entry: Entry; active: boolean }) {
   const isImage = isImageEntry(entry)
+  const isVideo = isVideoEntry(entry)
+  const isText = isTextEntry(entry)
 
   return (
     <div
@@ -55,15 +58,56 @@ function QueuePreview({ entry, active }: { entry: Entry; active: boolean }) {
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-white/[0.08] to-white/[0.02] text-white/55">
-          <Film size={18} />
+          {isText ? <FileText size={18} /> : <Film size={18} />}
         </div>
       )}
 
-      {isVideoEntry(entry) && (
+      {isVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/35">
           <Play size={14} className="fill-white text-white drop-shadow-sm" />
         </div>
       )}
+    </div>
+  )
+}
+
+function TextViewer({ entry }: { entry: Entry }) {
+  const [content, setContent] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setContent(null)
+    setError(null)
+    fetch(api.fs.raw(entry.id))
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load')
+        return r.text()
+      })
+      .then(setContent)
+      .catch(() => setError('Failed to load file content.'))
+  }, [entry.id])
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">
+        {error}
+      </div>
+    )
+  }
+
+  if (content === null) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">
+        Loading…
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute inset-0 overflow-auto p-4 sm:p-8">
+      <pre className="whitespace-pre-wrap break-all font-mono text-sm leading-relaxed text-white/85 select-text">
+        {content}
+      </pre>
     </div>
   )
 }
@@ -84,7 +128,7 @@ function NavButton({
       disabled={disabled}
       aria-label={direction === 'prev' ? 'Previous media item' : 'Next media item'}
       className={cn(
-        'absolute top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/70 backdrop-blur-md transition hover:bg-black/50 hover:text-white sm:inline-flex',
+        'absolute top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/70 backdrop-blur-md transition hover:bg-black/50 hover:text-white',
         direction === 'prev' ? 'left-4' : 'right-4',
         disabled && 'pointer-events-none opacity-20'
       )}
@@ -108,6 +152,10 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const desktopQueueRef = useRef<HTMLDivElement>(null)
   const mobileQueueRef = useRef<HTMLDivElement>(null)
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
+  const isPinchingRef = useRef(false)
+  const pinchDistRef = useRef<number | null>(null)
+  const imageAreaRef = useRef<HTMLDivElement>(null)
 
   if (entries.length === 0) return null
 
@@ -115,6 +163,7 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
   const entry = entries[currentIndex]
   const image = isImageEntry(entry)
   const video = isVideoEntry(entry)
+  const text = isTextEntry(entry)
   const hasPrev = currentIndex > 0
   const hasNext = currentIndex < entries.length - 1
 
@@ -284,6 +333,44 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onWindowKeyDown])
 
+  useEffect(() => {
+    const el = imageAreaRef.current
+    if (!el || !image) return
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        pinchDistRef.current = Math.sqrt(dx * dx + dy * dy)
+        isPinchingRef.current = true
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || pinchDistRef.current === null) return
+      e.preventDefault()
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const scale = dist / pinchDistRef.current
+      pinchDistRef.current = dist
+      setZoom(z => clamp(z * scale, MIN_ZOOM, MAX_ZOOM))
+    }
+
+    const handleTouchEnd = () => {
+      pinchDistRef.current = null
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [image, currentId])
+
   return (
     <Dialog.Root open onOpenChange={open => !open && onClose()}>
       <Dialog.Portal>
@@ -308,7 +395,9 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
                     ? 'Left and right seek, Shift with arrows switches files'
                     : image
                       ? 'Arrow keys switch files, plus and minus change zoom'
-                      : 'Media viewer'}
+                      : text
+                        ? 'Text file — select and copy freely'
+                        : 'Media viewer'}
                 </p>
               </div>
 
@@ -390,79 +479,101 @@ export function Lightbox({ entries, activeId, onClose }: Props) {
               </Dialog.Close>
             </div>
 
-            <div className="relative flex-1 overflow-hidden">
+            <div
+              ref={imageAreaRef}
+              className="relative flex-1"
+              onTouchStart={e => {
+                isPinchingRef.current = e.touches.length >= 2
+                if (e.touches.length === 1) {
+                  touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() }
+                }
+              }}
+              onTouchEnd={e => {
+                if (isPinchingRef.current) {
+                  isPinchingRef.current = false
+                  touchStartRef.current = null
+                  return
+                }
+                if (!touchStartRef.current) return
+                const t = e.changedTouches[0]
+                const dx = t.clientX - touchStartRef.current.x
+                const dy = t.clientY - touchStartRef.current.y
+                const dt = Date.now() - touchStartRef.current.time
+                touchStartRef.current = null
+                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) && dt < 400 && zoom <= MIN_ZOOM) {
+                  if (dx > 0) go(-1)
+                  else go(1)
+                }
+              }}
+            >
               {image && (
-                <div
-                  className="flex h-full items-center justify-center overflow-auto px-4 py-6 sm:px-8 sm:py-8"
-                  onClick={onClose}
-                >
+                <div className="absolute inset-0" onClick={onClose}>
                   <div
-                    className="relative flex min-h-full min-w-full items-center justify-center"
-                    onClick={event => event.stopPropagation()}
+                    className={cn(
+                      'absolute inset-x-4 inset-y-6 sm:inset-x-8 sm:inset-y-8 flex items-center justify-center',
+                      zoom > MIN_ZOOM ? 'overflow-auto' : 'overflow-hidden'
+                    )}
                   >
-                    <img
-                      key={entry.id}
-                      data-testid="lightbox-media-image"
-                      src={api.fs.raw(entry.id)}
-                      alt={entry.name}
-                      draggable={false}
-                      onLoad={() => {
-                        setImageLoading(false)
-                        setImageError(null)
-                      }}
-                      onError={() => {
-                        setImageLoading(false)
-                        setImageError('Failed to load this image.')
-                      }}
-                      onDoubleClick={() => setZoom(value => value > 1 ? MIN_ZOOM : 2)}
-                      className="select-none object-contain shadow-2xl"
-                      style={{
-                        maxHeight: zoom === MIN_ZOOM ? '100%' : 'none',
-                        maxWidth: zoom === MIN_ZOOM ? '100%' : `${zoom * 100}%`,
-                      }}
-                    />
+                    <div
+                      className={cn(
+                        'flex items-center justify-center',
+                        zoom > MIN_ZOOM ? 'min-h-full min-w-full' : 'h-full w-full'
+                      )}
+                      onClick={event => event.stopPropagation()}
+                    >
+                      <img
+                        key={entry.id}
+                        data-testid="lightbox-media-image"
+                        src={api.fs.raw(entry.id)}
+                        alt={entry.name}
+                        draggable={false}
+                        onLoad={() => { setImageLoading(false); setImageError(null) }}
+                        onError={() => { setImageLoading(false); setImageError('Failed to load this image.') }}
+                        onDoubleClick={() => setZoom(value => value > 1 ? MIN_ZOOM : 2)}
+                        className="select-none object-contain shadow-2xl"
+                        style={{
+                          maxHeight: zoom === MIN_ZOOM ? '100%' : 'none',
+                          maxWidth: zoom === MIN_ZOOM ? '100%' : `${zoom * 100}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               {video && (
-                <div className="flex h-full items-center justify-center bg-black px-4 py-6 sm:px-8 sm:py-8">
-                  <div className="relative flex h-full w-full items-center justify-center">
-                    <video
-                      key={entry.id}
-                      ref={videoRef}
-                      className="max-h-full max-w-full rounded-2xl bg-black shadow-2xl"
-                      controls
-                      autoPlay
-                      playsInline
-                      preload="auto"
-                      onLoadStart={() => {
-                        setVideoLoading(true)
-                        setVideoError(null)
-                      }}
-                      onCanPlay={() => setVideoLoading(false)}
-                      onPlay={() => setVideoPlaying(true)}
-                      onPause={() => setVideoPlaying(false)}
-                      onWaiting={() => setVideoLoading(true)}
-                      onPlaying={() => setVideoLoading(false)}
-                      onVolumeChange={event => setVideoMuted(event.currentTarget.muted || event.currentTarget.volume === 0)}
-                      onEnded={() => {
-                        setVideoPlaying(false)
-                        if (hasNext) go(1)
-                      }}
-                      onError={() => {
-                        setVideoLoading(false)
-                        setVideoError('Failed to load this video.')
-                      }}
-                    >
-                      <source src={api.fs.raw(entry.id)} type={entry.mime} />
-                    </video>
+                <div className="absolute inset-0 bg-black">
+                  <div className="absolute inset-x-4 inset-y-6 sm:inset-x-8 sm:inset-y-8 flex items-center justify-center">
+                    <div className="relative flex h-full w-full items-center justify-center">
+                      <video
+                        key={entry.id}
+                        ref={videoRef}
+                        className="max-h-full max-w-full rounded-2xl bg-black shadow-2xl"
+                        controls
+                        autoPlay
+                        playsInline
+                        preload="auto"
+                        onLoadStart={() => { setVideoLoading(true); setVideoError(null) }}
+                        onCanPlay={() => setVideoLoading(false)}
+                        onPlay={() => setVideoPlaying(true)}
+                        onPause={() => setVideoPlaying(false)}
+                        onWaiting={() => setVideoLoading(true)}
+                        onPlaying={() => setVideoLoading(false)}
+                        onVolumeChange={event => setVideoMuted(event.currentTarget.muted || event.currentTarget.volume === 0)}
+                        onEnded={() => { setVideoPlaying(false); if (hasNext) go(1) }}
+                        onError={() => { setVideoLoading(false); setVideoError('Failed to load this video.') }}
+                      >
+                        <source src={api.fs.raw(entry.id)} type={entry.mime} />
+                      </video>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {!image && !video && (
-                <div className="flex h-full items-center justify-center text-sm text-white/60">
+              {!image && !video && text && <TextViewer entry={entry} />}
+
+              {!image && !video && !text && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">
                   Unsupported media type
                 </div>
               )}
