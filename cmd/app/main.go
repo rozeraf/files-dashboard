@@ -59,14 +59,14 @@ func main() {
 		syncer.RebuildFTS()
 	}()
 
-	h := httpapi.NewHandler(cfg, db)
+	h := httpapi.NewHandler(cfg, db, dataDir)
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      h.Routes(),
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		WriteTimeout: 10 * time.Minute,
 		IdleTimeout:  120 * time.Second,
 	}
 

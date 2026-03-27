@@ -21,9 +21,10 @@ type Handler struct {
 	store   *organize.Store
 	jobs    *JobStore
 	scanMu  sync.Mutex
+	dataDir string
 }
 
-func NewHandler(cfg *config.Config, db *sql.DB) *Handler {
+func NewHandler(cfg *config.Config, db *sql.DB, dataDir string) *Handler {
 	return &Handler{
 		cfg:     cfg,
 		db:      db,
@@ -31,6 +32,7 @@ func NewHandler(cfg *config.Config, db *sql.DB) *Handler {
 		syncer:  index.NewSyncer(db),
 		store:   organize.NewStore(db),
 		jobs:    NewJobStore(),
+		dataDir: dataDir,
 	}
 }
 
@@ -50,6 +52,7 @@ func (h *Handler) Routes() http.Handler {
 			r.Get("/roots/{rootId}/entries", h.listEntries)
 			r.Get("/entries/{id}", h.getEntry)
 			r.Get("/entries/{id}/raw", h.rawEntry)
+			r.Get("/entries/{id}/thumb", h.thumbEntry)
 			r.Post("/entries/{id}/rename", h.renameEntry)
 			r.Post("/entries/move", h.moveEntries)
 			r.Delete("/entries", h.deleteEntries)

@@ -26,7 +26,8 @@ func Open(dsn string) (*sql.DB, error) {
 		}
 	}
 
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(4)
 
 	if err := migrate(db); err != nil {
 		db.Close()

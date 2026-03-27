@@ -163,6 +163,7 @@ func (h *Handler) rawEntry(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 404, "not found")
 		return
 	}
+	w.Header().Set("Cache-Control", "private, max-age=3600")
 	http.ServeFile(w, r, absPath)
 }
 
