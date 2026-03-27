@@ -8,12 +8,23 @@ import { isImageEntry, isVideoEntry, useMediaViewer } from './useMediaViewer'
 import { Play, Check } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let parent = el.parentElement
+  while (parent) {
+    const { overflowY } = getComputedStyle(parent)
+    if (overflowY === 'auto' || overflowY === 'scroll') return parent
+    parent = parent.parentElement
+  }
+  return null
+}
+
 function LazyImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const ref = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    const root = findScrollParent(el)
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -21,7 +32,7 @@ function LazyImage({ src, alt, className }: { src: string; alt: string; classNam
           observer.disconnect()
         }
       },
-      { rootMargin: '300px' }
+      { root, rootMargin: '300px' }
     )
     observer.observe(el)
     return () => observer.disconnect()
@@ -37,6 +48,7 @@ function VideoThumbnail({ src }: { src: string }) {
     const el = ref.current
     if (!el) return
 
+    const root = findScrollParent(el)
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -44,7 +56,7 @@ function VideoThumbnail({ src }: { src: string }) {
           observer.disconnect()
         }
       },
-      { rootMargin: '100px' }
+      { root, rootMargin: '100px' }
     )
     observer.observe(el)
     return () => observer.disconnect()
