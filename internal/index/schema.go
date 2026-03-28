@@ -114,25 +114,21 @@ func migrate(db *sql.DB) error {
 	return err
 }
 
-// ResetDB drops all data except roots and recreates the schema.
+// ResetDB deletes all data from every table but leaves the schema intact.
 func ResetDB(db *sql.DB) error {
-	drops := []string{
-		`DELETE FROM collection_entries`,
-		`DELETE FROM entry_categories`,
-		`DELETE FROM entry_tags`,
-		`DELETE FROM favorites`,
-		`DELETE FROM entries_fts`,
-		`DELETE FROM entries`,
-		`DELETE FROM categories`,
-		`DELETE FROM libraries`,
-		`DELETE FROM collections`,
-		`DELETE FROM saved_views`,
-		`DELETE FROM tags`,
+	tables := []string{
+		"collection_entries", "entry_categories", "entry_tags",
+		"favorites", "entries", "categories",
+		"libraries", "collections", "saved_views", "tags",
 	}
-	for _, q := range drops {
-		if _, err := db.Exec(q); err != nil {
+	for _, t := range tables {
+		if _, err := db.Exec("DELETE FROM " + t); err != nil {
 			return err
 		}
+	}
+	// FTS5 contentless tables require a special command to clear all data.
+	if _, err := db.Exec("INSERT INTO entries_fts(entries_fts) VALUES('delete-all')"); err != nil {
+		return err
 	}
 	return nil
 }

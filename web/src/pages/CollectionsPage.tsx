@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Library } from 'lucide-react'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 
 export function CollectionsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { data = [] } = useQuery({ queryKey: ['collections'], queryFn: api.collections.list })
+  const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: api.collections.list })
+  const data = collectionsQuery.data ?? []
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editCol, setEditCol] = useState<Collection | null>(null)
@@ -39,38 +41,63 @@ export function CollectionsPage() {
   const openCreate = () => { setName(''); setDesc(''); setCreateOpen(true) }
   const openEdit = (col: Collection) => { setEditCol(col); setName(col.name); setDesc(col.description) }
 
+  if (collectionsQuery.isPending) {
+    return <LoadingState title="Loading collections" description="Gathering your curated file groups." />
+  }
+
+  if (collectionsQuery.error) {
+    return <ErrorState title="Couldn't load collections" error={collectionsQuery.error} onRetry={() => void collectionsQuery.refetch()} />
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Collections</h1>
-        <Button size="sm" onClick={openCreate}><Plus size={14} className="mr-1" />New Collection</Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Collections</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Curated groups of files</p>
+        </div>
+        <Button size="sm" onClick={openCreate} className="gap-1.5 self-start">
+          <Plus size={14} />New Collection
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {data.map(col => (
-          <div key={col.id} className="relative group p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all">
-            <button className="w-full text-left" onClick={() => navigate(`/collections/${col.id}`)}>
-              <p className="font-medium">{col.name}</p>
-              {col.description && <p className="text-xs text-muted-foreground mt-1">{col.description}</p>}
-            </button>
-            <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); openEdit(col) }}>
-                <Pencil size={11} />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCol(col) }}>
-                <Trash2 size={11} />
-              </Button>
+      {data.length === 0 ? (
+        <EmptyState
+          title="No collections yet"
+          description="Create collections to group related files together."
+          icon={<Library size={22} />}
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+          {data.map(col => (
+            <div key={col.id} className="relative group">
+              <button
+                className="w-full p-5 rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left"
+                onClick={() => navigate(`/collections/${col.id}`)}
+              >
+                <p className="font-semibold text-sm">{col.name}</p>
+                {col.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{col.description}</p>}
+              </button>
+              <div className="absolute top-3 right-3 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm" onClick={e => { e.stopPropagation(); openEdit(col) }}>
+                  <Pencil size={12} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCol(col) }}>
+                  <Trash2 size={12} />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Create */}
       <Dialog open={createOpen} onOpenChange={o => !o && setCreateOpen(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>New Collection</DialogTitle></DialogHeader>
-          <Input placeholder="Name" value={name} onChange={e => setName(e.target.value)} autoFocus />
-          <Input placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          <div className="space-y-3">
+            <Input placeholder="Name" value={name} onChange={e => setName(e.target.value)} autoFocus />
+            <Input placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={() => create.mutate()} disabled={!name || create.isPending}>Create</Button>
@@ -78,12 +105,13 @@ export function CollectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit */}
       <Dialog open={!!editCol} onOpenChange={o => !o && setEditCol(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Collection</DialogTitle></DialogHeader>
-          <Input value={name} onChange={e => setName(e.target.value)} autoFocus />
-          <Input placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          <div className="space-y-3">
+            <Input value={name} onChange={e => setName(e.target.value)} autoFocus />
+            <Input placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCol(null)}>Cancel</Button>
             <Button onClick={() => update.mutate()} disabled={!name || update.isPending}>Save</Button>
@@ -91,7 +119,6 @@ export function CollectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete */}
       <Dialog open={!!deleteCol} onOpenChange={o => !o && setDeleteCol(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete "{deleteCol?.name}"?</DialogTitle></DialogHeader>

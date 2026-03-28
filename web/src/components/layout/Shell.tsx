@@ -4,17 +4,25 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { SelectionToolbar } from '@/components/ui/SelectionToolbar'
 import { useUI } from '@/stores/ui'
-import { cn } from '@/lib/utils'
 
 export function Shell() {
-  const { sidebarOpen } = useUI()
+  const { sidebarOpen, setSidebarOpen } = useUI()
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex h-dvh bg-background text-foreground overflow-hidden">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       <Sidebar />
-      <div className={cn('flex flex-col flex-1 min-w-0 transition-all', sidebarOpen ? 'ml-0' : 'ml-0')}>
+      <div className="flex flex-col flex-1 min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+        <main className="safe-x safe-bottom flex-1 overflow-y-auto px-3 py-3 pb-24 sm:p-6 sm:pb-6">
+          <div className="animate-in mx-auto w-full max-w-6xl">
+            <Outlet />
+          </div>
         </main>
         <SelectionToolbar />
       </div>

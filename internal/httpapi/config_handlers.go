@@ -99,3 +99,11 @@ func (h *Handler) scanStatus(w http.ResponseWriter, r *http.Request) {
 	defer job.Unlock()
 	writeJSON(w, 200, job)
 }
+
+func (h *Handler) resetDB(w http.ResponseWriter, r *http.Request) {
+	if err := index.ResetDB(h.db); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "ok"})
+}

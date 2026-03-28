@@ -8,13 +8,16 @@ interface UIState {
   selectedIds: Set<string>
   setTheme: (t: Theme) => void
   toggleSidebar: () => void
+  setSidebarOpen: (open: boolean) => void
   selectEntry: (id: string, multi: boolean) => void
   clearSelection: () => void
 }
 
+const isDesktop = () => window.innerWidth >= 768
+
 export const useUI = create<UIState>((set) => ({
   theme: (localStorage.getItem('theme') as Theme) || 'system',
-  sidebarOpen: true,
+  sidebarOpen: isDesktop() ? localStorage.getItem('sidebarOpen') !== 'false' : false,
   selectedIds: new Set(),
 
   setTheme: (t) => {
@@ -25,7 +28,15 @@ export const useUI = create<UIState>((set) => ({
     set({ theme: t })
   },
 
-  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  toggleSidebar: () => set((s) => {
+    const next = !s.sidebarOpen
+    if (isDesktop()) localStorage.setItem('sidebarOpen', String(next))
+    return { sidebarOpen: next }
+  }),
+  setSidebarOpen: (open) => {
+    if (isDesktop()) localStorage.setItem('sidebarOpen', String(open))
+    set({ sidebarOpen: open })
+  },
 
   selectEntry: (id, multi) => set((s) => {
     const next = new Set(multi ? s.selectedIds : [])

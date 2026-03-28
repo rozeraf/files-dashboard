@@ -155,8 +155,10 @@ internal/httpapi/static/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Compiled binary
+# Compiled binaries
+/app
 bin/
 
 # Runtime data (DB, config)
-data/
+data/*
+!data/config.json.example

@@ -1,0 +1,12 @@
+export const TEST_PORT = 4541
+export const TEST_APP_NAME = 'Files Dashboard E2E'
+export const TEST_ROOT_ID = 'playwright-root'
+export const TEST_ROOT_LABEL = 'Playwright Root'
+export const BULK_FILE_COUNT = 55
+export const TOTAL_INDEXED_ENTRIES = BULK_FILE_COUNT + 6
+export const UNIQUE_FILE_NAME = 'needle-target.txt'
+export const SECONDARY_FILE_NAME = 'summary-report.txt'
+export const NESTED_DIR_NAME = 'folder-alpha'
+export const NESTED_FILE_NAME = 'nested-note.txt'
+export const PRIMARY_IMAGE_FILE_NAME = 'gallery-red.png'
+export const SECONDARY_IMAGE_FILE_NAME = 'gallery-blue.png'

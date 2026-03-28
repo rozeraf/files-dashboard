@@ -2,15 +2,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Entry } from '@/lib/api'
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { EntryDetailPanel } from '@/components/ui/EntryDetailPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { ChevronRight, FolderPlus, Upload, Pencil, Trash2 } from 'lucide-react'
-import { formatSize, formatDate, mimeToIcon } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { ChevronRight, FolderPlus, Upload, Pencil, Trash2, HardDrive } from 'lucide-react'
+import { formatSize, formatDate, mimeToIcon, cn } from '@/lib/utils'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
+import { usePasteUpload, asFileList } from '@/hooks/usePasteUpload'
 
 export function FilesPage() {
+  const navigate = useNavigate()
   const [rootId, setRootId] = useState<string | null>(null)
   const [path, setPath] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -24,12 +27,14 @@ export function FilesPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['fs-entries', rootId, path] })
 
-  const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
-  const { data: entries = [] } = useQuery({
+  const rootsQuery = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
+  const entriesQuery = useQuery({
     queryKey: ['fs-entries', rootId, path],
     queryFn: () => api.fs.list(rootId!, path),
     enabled: !!rootId,
   })
+  const roots = rootsQuery.data ?? []
+  const entries = entriesQuery.data ?? []
 
   const mkdir = useMutation({
     mutationFn: () => api.fs.mkdir(rootId!, path, mkdirName),
@@ -48,123 +53,207 @@ export function FilesPage() {
 
   const handleUpload = (files: FileList | null) => {
     if (!files || !rootId) return
-    Array.from(files).forEach(file =>
-      api.fs.upload(rootId, path, file).then(invalidate)
-    )
+    Promise.allSettled(
+      Array.from(files).map(file => api.fs.upload(rootId, path, file))
+    ).then(invalidate)
   }
 
-  const openRename = (e: Entry) => { setRenameEntry(e); setRenameName(e.name) }
+  usePasteUpload(files => handleUpload(asFileList(files)), !!rootId)
 
+  const openRename = (e: Entry) => { setRenameEntry(e); setRenameName(e.name) }
   const breadcrumbs = path.split('/').filter(Boolean)
+
+  if (rootsQuery.isPending) {
+    return <LoadingState title="Loading storage roots" description="Preparing the file browser." />
+  }
+
+  if (rootsQuery.error) {
+    return <ErrorState title="Couldn't load storage roots" error={rootsQuery.error} onRetry={() => void rootsQuery.refetch()} />
+  }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Files</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Files</h1>
+      </div>
 
       {/* Root selector */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap overflow-x-auto no-scrollbar pb-0.5">
         {roots.map(r => (
-          <Button key={r.id} variant={rootId === r.id ? 'default' : 'outline'} size="sm"
-            onClick={() => { setRootId(r.id); setPath('') }}>
-            {r.label}
+          <Button
+            key={r.id}
+            data-testid="file-browser-root-button"
+            variant={rootId === r.id ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => { setRootId(r.id); setPath('') }}
+            className="gap-2"
+          >
+            <HardDrive size={13} />{r.label}
           </Button>
         ))}
       </div>
 
       {rootId && (
         <>
-          {/* Toolbar */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload size={14} className="mr-1.5" />Upload
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setMkdirOpen(true)}>
-              <FolderPlus size={14} className="mr-1.5" />New Folder
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={e => handleUpload(e.target.files)}
-            />
-          </div>
-
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <button onClick={() => setPath('')} className="hover:text-foreground">root</button>
-            {breadcrumbs.map((seg, i, arr) => (
-              <span key={i} className="flex items-center gap-1">
-                <ChevronRight size={12} />
-                <button
-                  onClick={() => setPath(arr.slice(0, i + 1).join('/'))}
-                  className="hover:text-foreground"
-                >{seg}</button>
-              </span>
-            ))}
+          {/* Toolbar + Breadcrumb */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto no-scrollbar">
+              <button onClick={() => setPath('')} className="hover:text-foreground font-medium transition-colors shrink-0">root</button>
+              {breadcrumbs.map((seg, i, arr) => (
+                <span key={i} className="flex items-center gap-1.5 shrink-0">
+                  <ChevronRight size={11} className="opacity-40" />
+                  <button
+                    onClick={() => setPath(arr.slice(0, i + 1).join('/'))}
+                    className="hover:text-foreground transition-colors"
+                  >{seg}</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={13} /><span className="hidden xs:inline">Upload</span>
+              </Button>
+              {rootId && (
+                <span className="text-xs text-muted-foreground hidden sm:inline whitespace-nowrap">or paste Ctrl+V</span>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => setMkdirOpen(true)}>
+                <FolderPlus size={13} /><span className="hidden xs:inline">New Folder</span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={e => handleUpload(e.target.files)}
+              />
+            </div>
           </div>
 
           {/* File table */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-2 font-medium">Name</th>
-                <th className="pb-2 font-medium">Size</th>
-                <th className="pb-2 font-medium">Modified</th>
-                <th className="pb-2 font-medium w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
+          {entriesQuery.isPending ? (
+            <LoadingState compact title="Loading folder" description="Fetching files for this location." />
+          ) : entriesQuery.error ? (
+            <ErrorState
+              compact
+              title="Couldn't load this folder"
+              error={entriesQuery.error}
+              onRetry={() => void entriesQuery.refetch()}
+            />
+          ) : entries.length === 0 ? (
+            <EmptyState
+              compact
+              title="This folder is empty"
+              description="Upload files or create a folder to start organizing this location."
+            />
+          ) : (
+            <>
+            <div className="space-y-2 sm:hidden">
               {entries.map(entry => (
-                <tr
-                  key={entry.id}
-                  className={cn('border-b hover:bg-muted/50 transition-colors group')}
-                >
-                  <td
-                    className="py-2 flex items-center gap-2 cursor-pointer"
+                <div key={entry.id} className="rounded-xl border bg-card p-3">
+                  <button
+                    data-testid="file-browser-item-button"
+                    className="flex w-full items-start gap-3 text-left"
                     onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
                   >
-                    <span>{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
-                    <span className="truncate max-w-xs">{entry.name}</span>
-                  </td>
-                  <td className="py-2 text-muted-foreground">{formatSize(entry.size)}</td>
-                  <td className="py-2 text-muted-foreground">{formatDate(entry.mtime)}</td>
-                  <td className="py-2">
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7"
-                        title="Rename"
-                        onClick={e => { e.stopPropagation(); openRename(entry) }}
-                      >
-                        <Pencil size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-                        title="Delete"
-                        onClick={e => { e.stopPropagation(); setDeleteIds([entry.id]) }}
-                      >
-                        <Trash2 size={13} />
-                      </Button>
+                    <span className="mt-0.5 text-base shrink-0">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{entry.name}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="tabular-nums">{formatSize(entry.size)}</span>
+                        <span>{formatDate(entry.mtime)}</span>
+                        <span className="font-mono">{entry.ext || entry.kind}</span>
+                      </div>
                     </div>
-                  </td>
-                </tr>
+                  </button>
+                  <div className="mt-3 flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Rename"
+                      onClick={e => { e.stopPropagation(); openRename(entry) }}>
+                      <Pencil size={13} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete"
+                      onClick={e => { e.stopPropagation(); setDeleteIds([entry.id]) }}>
+                      <Trash2 size={13} />
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="hidden rounded-xl border overflow-hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/40 text-left text-muted-foreground">
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Name</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Size</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Modified</th>
+                    <th className="px-3 sm:px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-20"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map(entry => (
+                    <tr
+                      key={entry.id}
+                      data-testid="file-browser-item-row"
+                      className="border-t hover:bg-muted/30 transition-colors group"
+                    >
+                      <td
+                        data-testid="file-browser-item-button"
+                        className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-2.5 cursor-pointer"
+                        onClick={() => entry.kind === 'dir' ? setPath(entry.rel_path) : setDetailId(entry.id)}
+                      >
+                        <span className="text-base shrink-0">{entry.kind === 'dir' ? '📁' : mimeToIcon(entry.mime, entry.kind)}</span>
+                        <span className="truncate font-medium text-xs sm:text-sm">{entry.name}</span>
+                      </td>
+                      <td className="px-3 sm:px-4 py-2.5 text-muted-foreground tabular-nums hidden sm:table-cell">{formatSize(entry.size)}</td>
+                      <td className="px-3 sm:px-4 py-2.5 text-muted-foreground hidden md:table-cell">{formatDate(entry.mtime)}</td>
+                      <td className="px-3 sm:px-4 py-2.5">
+                        <div className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Rename"
+                            onClick={e => { e.stopPropagation(); openRename(entry) }}>
+                            <Pencil size={12} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete"
+                            onClick={e => { e.stopPropagation(); setDeleteIds([entry.id]) }}>
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            </>
+          )}
         </>
       )}
 
-      {/* New Folder dialog */}
+      {!rootId && roots.length > 0 && (
+        <EmptyState
+          compact
+          title="Select a storage root"
+          description="Choose one of your configured roots above to start browsing files."
+        />
+      )}
+
+      {!rootId && roots.length === 0 && (
+        <EmptyState
+          title="No storage roots configured"
+          description="Add at least one storage root in Settings to use the file browser."
+          action={
+            <Button variant="outline" onClick={() => navigate('/settings')}>
+              Go to Settings
+            </Button>
+          }
+        />
+      )}
+
+      {/* Dialogs */}
       <Dialog open={mkdirOpen} onOpenChange={setMkdirOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>New Folder</DialogTitle></DialogHeader>
-          <Input
-            placeholder="Folder name"
-            value={mkdirName}
-            onChange={e => setMkdirName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && mkdirName && mkdir.mutate()}
-            autoFocus
-          />
+          <Input placeholder="Folder name" value={mkdirName} onChange={e => setMkdirName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && mkdirName && mkdir.mutate()} autoFocus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setMkdirOpen(false)}>Cancel</Button>
             <Button onClick={() => mkdir.mutate()} disabled={!mkdirName || mkdir.isPending}>Create</Button>
@@ -172,16 +261,11 @@ export function FilesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Rename dialog */}
       <Dialog open={!!renameEntry} onOpenChange={o => !o && setRenameEntry(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Rename</DialogTitle></DialogHeader>
-          <Input
-            value={renameName}
-            onChange={e => setRenameName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && renameName && rename.mutate()}
-            autoFocus
-          />
+          <Input value={renameName} onChange={e => setRenameName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && renameName && rename.mutate()} autoFocus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameEntry(null)}>Cancel</Button>
             <Button onClick={() => rename.mutate()} disabled={!renameName || rename.isPending}>Rename</Button>
@@ -189,7 +273,6 @@ export function FilesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <Dialog open={!!deleteIds} onOpenChange={o => !o && setDeleteIds(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete {deleteIds?.length === 1 ? 'item' : `${deleteIds?.length} items`}?</DialogTitle></DialogHeader>
@@ -201,12 +284,8 @@ export function FilesPage() {
         </DialogContent>
       </Dialog>
 
-      <EntryDetailPanel
-        entryId={detailId}
-        onClose={() => setDetailId(null)}
-        onDeleted={() => { setDetailId(null); invalidate() }}
-        onRenamed={() => invalidate()}
-      />
+      <EntryDetailPanel entryId={detailId} onClose={() => setDetailId(null)}
+        onDeleted={() => { setDetailId(null); invalidate() }} onRenamed={() => invalidate()} />
     </div>
   )
 }

@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LayoutGrid, List, Pencil, Trash2, Upload, FilePlus, FolderPlus } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
+import { usePasteUpload, asFileList } from '@/hooks/usePasteUpload'
 
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
@@ -44,26 +46,29 @@ export function CategoryPage() {
   const [createContent, setCreateContent] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const { data: roots = [] } = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
+  const rootsQuery = useQuery({ queryKey: ['roots'], queryFn: api.roots.list })
 
-  const { data: subcategories = [] } = useQuery({
+  const subcategoriesQuery = useQuery({
     queryKey: ['subcategories', categoryId],
     queryFn: () => api.categories.subcategories(categoryId!),
     enabled: !!categoryId,
   })
 
-  const { data: category } = useQuery({
+  const categoryQuery = useQuery({
     queryKey: ['category', categoryId],
     queryFn: () => api.categories.get(categoryId!),
     enabled: !!categoryId,
   })
 
-  const { data } = useQuery({
+  const entriesQuery = useQuery({
     queryKey: ['category-entries', categoryId],
     queryFn: () => api.categories.entries(categoryId!),
     enabled: !!categoryId,
   })
-  const entries = data?.items ?? []
+  const roots = rootsQuery.data ?? []
+  const subcategories = subcategoriesQuery.data ?? []
+  const category = categoryQuery.data
+  const entries = entriesQuery.data?.items ?? []
 
   const invalidateEntries = () => qc.invalidateQueries({ queryKey: ['category-entries', categoryId] })
 
@@ -121,6 +126,11 @@ export function CategoryPage() {
     }
   }
 
+  usePasteUpload(
+    files => handleUpload(asFileList(files)),
+    uploadOpen && !!uploadRootId,
+  )
+
   const openRename = () => { setRenameName(category?.name ?? ''); setRenameOpen(true) }
 
   const rename = useMutation({
@@ -140,12 +150,29 @@ export function CategoryPage() {
     },
   })
 
+  if (categoryQuery.isPending || subcategoriesQuery.isPending || entriesQuery.isPending) {
+    return <LoadingState title="Loading category" description="Preparing subcategories and assigned files." />
+  }
+
+  if (categoryQuery.error || subcategoriesQuery.error || entriesQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load this category"
+        error={categoryQuery.error ?? subcategoriesQuery.error ?? entriesQuery.error}
+        onRetry={() => {
+          void categoryQuery.refetch()
+          void subcategoriesQuery.refetch()
+          void entriesQuery.refetch()
+        }}
+      />
+    )
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        {/* Left: category name + edit/delete */}
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{category?.name ?? 'Category'}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{category?.name ?? 'Category'}</h1>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openRename}>
             <Pencil size={14} />
           </Button>
@@ -154,32 +181,31 @@ export function CategoryPage() {
           </Button>
         </div>
 
-        {/* Right: upload/create + view toggle */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)}>
-            <FolderPlus size={14} className="mr-1.5" />New Subcategory
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setNewSubcatOpen(true)} className="gap-1.5">
+            <FolderPlus size={14} /><span className="hidden sm:inline">Subcategory</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0}>
-            <Upload size={14} className="mr-1.5" />Upload
+          <Button variant="outline" size="sm" onClick={openUpload} disabled={roots.length === 0} className="gap-1.5">
+            <Upload size={14} /><span className="hidden sm:inline">Upload</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={openCreate} disabled={roots.length === 0}>
-            <FilePlus size={14} className="mr-1.5" />Create
+          <Button variant="outline" size="sm" onClick={openCreate} disabled={roots.length === 0} className="gap-1.5">
+            <FilePlus size={14} /><span className="hidden sm:inline">Create</span>
           </Button>
           <div className="flex gap-1 border-l pl-2 ml-1">
-            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" onClick={() => setView('grid')}><LayoutGrid size={16} /></Button>
-            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" onClick={() => setView('table')}><List size={16} /></Button>
+            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('grid')}><LayoutGrid size={15} /></Button>
+            <Button variant={view === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setView('table')}><List size={15} /></Button>
           </div>
         </div>
       </div>
 
       {/* Subcategories */}
       {subcategories.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {subcategories.map(sub => (
             <button
               key={sub.id}
               onClick={() => navigate(`/categories/${sub.id}`)}
-              className="p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-left"
+              className="p-4 rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left"
             >
               <p className="font-medium text-sm">{sub.name}</p>
             </button>
@@ -225,6 +251,9 @@ export function CategoryPage() {
               onChange={e => handleUpload(e.target.files)}
             />
             {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+            {!uploading && uploadRootId && (
+              <p className="text-xs text-muted-foreground">or paste Ctrl+V to upload from clipboard</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadOpen(false)}>Close</Button>

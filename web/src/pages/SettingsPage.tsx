@@ -5,18 +5,22 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useState } from 'react'
-import { Trash2, Plus, RefreshCw, Pencil, AlertTriangle } from 'lucide-react'
+import { Trash2, Plus, RefreshCw, Pencil, AlertTriangle, Loader2, HardDrive, BookOpen, Settings2, RotateCcw } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function SettingsPage() {
   const qc = useQueryClient()
-  const { data: config } = useQuery({ queryKey: ['config'], queryFn: api.config.get })
-  const { data: libraries = [] } = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
+  const configQuery = useQuery({ queryKey: ['config'], queryFn: api.config.get })
+  const librariesQuery = useQuery({ queryKey: ['libraries'], queryFn: api.libraries.list })
+  const config = configQuery.data
+  const libraries = librariesQuery.data ?? []
 
   // Roots
   const [newPath, setNewPath] = useState('')
   const [newLabel, setNewLabel] = useState('')
   const [editRootId, setEditRootId] = useState<string | null>(null)
   const [editRootLabel, setEditRootLabel] = useState('')
+  const [deleteRootTarget, setDeleteRootTarget] = useState<{ id: string; label: string } | null>(null)
 
   // Scan
   const [scanJobId, setScanJobId] = useState<string | null>(null)
@@ -36,6 +40,7 @@ export function SettingsPage() {
 
   // Reset
   const [resetOpen, setResetOpen] = useState(false)
+  const [resetConfirm, setResetConfirm] = useState('')
 
   const addRoot = useMutation({
     mutationFn: () => api.roots.create({ path: newPath, label: newLabel }),
@@ -60,6 +65,7 @@ export function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['config'] })
       qc.invalidateQueries({ queryKey: ['roots'] })
+      setDeleteRootTarget(null)
     },
   })
 
@@ -79,7 +85,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.create(newLibName, newLibIcon),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setNewLibOpen(false); setNewLibName(''); setNewLibIcon('📁')
     },
   })
@@ -88,7 +93,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.update(editLib!.id, { name: editLibName, icon: editLibIcon }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setEditLib(null)
     },
   })
@@ -97,7 +101,6 @@ export function SettingsPage() {
     mutationFn: () => api.libraries.delete(deleteLib!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['libraries'] })
-      qc.invalidateQueries({ queryKey: ['sidebar-libraries'] })
       setDeleteLib(null)
     },
   })
@@ -108,48 +111,70 @@ export function SettingsPage() {
   })
 
   const resetDB = useMutation({
-    mutationFn: async () => {
-      await api.reset()
-      const job = await api.scan.start()
-      return job
-    },
-    onSuccess: (job) => {
-      setScanJobId(job.jobId)
-      setResetOpen(false)
+    mutationFn: () => api.reset(),
+    onSuccess: () => {
       qc.invalidateQueries()
+      setResetOpen(false)
+      setResetConfirm('')
     },
   })
 
   const openEditLib = (lib: Library) => { setEditLib(lib); setEditLibName(lib.name); setEditLibIcon(lib.icon) }
   const openEditRoot = (id: string, label: string) => { setEditRootId(id); setEditRootLabel(label) }
 
+  if (configQuery.isPending || librariesQuery.isPending) {
+    return <LoadingState title="Loading settings" description="Preparing app configuration, roots, and libraries." />
+  }
+
+  if (configQuery.error || librariesQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load settings"
+        error={configQuery.error ?? librariesQuery.error}
+        onRetry={() => {
+          void configQuery.refetch()
+          void librariesQuery.refetch()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Manage your application configuration</p>
+      </div>
 
       {/* App */}
-      <section>
-        <h2 className="text-lg font-medium mb-3">Application</h2>
-        <div className="flex items-center justify-between p-3 border rounded-lg">
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Settings2 size={15} className="text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application</h2>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-xl bg-card">
           <div>
             <p className="text-xs text-muted-foreground">App name</p>
-            <p className="font-medium text-sm">{config?.app_name}</p>
+            <p className="font-medium text-sm mt-0.5">{config?.app_name}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => { setEditAppName(config?.app_name ?? ''); setEditAppNameOpen(true) }}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditAppName(config?.app_name ?? ''); setEditAppNameOpen(true) }}>
             <Pencil size={14} />
           </Button>
         </div>
       </section>
 
       {/* Storage Roots */}
-      <section>
-        <h2 className="text-lg font-medium mb-3">Storage Roots</h2>
-        <div className="space-y-2 mb-4">
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <HardDrive size={15} className="text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Storage Roots</h2>
+        </div>
+        <div className="space-y-2">
           {config?.roots.map(r => (
-            <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div key={r.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-xl bg-card">
               {editRootId === r.id ? (
-                <div className="flex flex-1 gap-2 mr-2">
-                  <Input value={editRootLabel} onChange={e => setEditRootLabel(e.target.value)} className="h-7 text-sm"
+                <div className="flex flex-1 flex-col sm:flex-row gap-2 mr-2">
+                  <Input value={editRootLabel} onChange={e => setEditRootLabel(e.target.value)} className="h-8 text-sm"
                     onKeyDown={e => e.key === 'Enter' && updateRoot.mutate()} autoFocus />
                   <Button size="sm" onClick={() => updateRoot.mutate()} disabled={updateRoot.isPending}>Save</Button>
                   <Button size="sm" variant="outline" onClick={() => setEditRootId(null)}>Cancel</Button>
@@ -158,13 +183,13 @@ export function SettingsPage() {
                 <>
                   <div>
                     <p className="font-medium text-sm">{r.label}</p>
-                    <p className="text-xs text-muted-foreground">{r.path}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{r.path}</p>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditRoot(r.id, r.label)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditRoot(r.id, r.label)}>
                       <Pencil size={13} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteRoot.mutate(r.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteRootTarget({ id: r.id, label: r.label })}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -173,64 +198,96 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input placeholder="Path (e.g. /data/videos)" value={newPath} onChange={e => setNewPath(e.target.value)} />
-          <Input placeholder="Label" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="w-32" />
-          <Button onClick={() => addRoot.mutate()} disabled={!newPath || !newLabel}>
-            <Plus size={14} className="mr-1" />Add
+          <Input placeholder="Label" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="sm:w-32" />
+          <Button onClick={() => addRoot.mutate()} disabled={!newPath || !newLabel || addRoot.isPending} className="gap-1.5 self-start">
+            <Plus size={14} />Add
           </Button>
         </div>
       </section>
 
       {/* Index */}
-      <section>
-        <h2 className="text-lg font-medium mb-3">Index</h2>
-        <Button onClick={() => startScan.mutate()} variant="outline" disabled={startScan.isPending}>
-          <RefreshCw size={14} className="mr-2" />Full Rescan
-        </Button>
-        {scanJob && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Status: {scanJob.status} — {scanJob.scanned} scanned, {scanJob.added} added
-          </p>
-        )}
-      </section>
-
-      {/* Danger zone */}
-      <section>
-        <h2 className="text-lg font-medium mb-3 text-destructive">Danger Zone</h2>
-        <div className="flex items-center justify-between p-3 border border-destructive/30 rounded-lg">
-          <div>
-            <p className="font-medium text-sm">Reset Database</p>
-            <p className="text-xs text-muted-foreground">Wipe all entries, libraries, categories, tags, collections, and favorites. Storage roots are preserved. A full rescan will run automatically.</p>
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <RefreshCw size={15} className="text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Index</h2>
+        </div>
+        <div className="p-4 border rounded-xl bg-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-sm">Full Rescan</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Re-index all storage roots</p>
+            </div>
+            <Button onClick={() => startScan.mutate()} variant="outline" size="sm" disabled={startScan.isPending} className="self-start">
+              {startScan.isPending
+                ? <Loader2 size={14} className="mr-1.5 animate-spin" />
+                : <RefreshCw size={14} className="mr-1.5" />
+              }
+              Scan
+            </Button>
           </div>
-          <Button variant="destructive" size="sm" onClick={() => setResetOpen(true)}>
-            <AlertTriangle size={14} className="mr-1.5" />Reset
-          </Button>
+          {scanJob && (
+            <div className="mt-3 pt-3 border-t">
+              <div className="flex items-center gap-2">
+                {scanJob.status === 'running' && <Loader2 size={13} className="animate-spin text-primary" />}
+                <p className="text-sm text-muted-foreground">
+                  {scanJob.status === 'running' ? 'Scanning' : scanJob.status === 'done' ? 'Complete' : 'Error'}
+                  {' — '}{scanJob.scanned} scanned, {scanJob.added} added
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
       {/* Libraries */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium">Libraries</h2>
-          <Button size="sm" variant="outline" onClick={() => setNewLibOpen(true)}>
-            <Plus size={14} className="mr-1" />New Library
+      <section className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen size={15} className="text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Libraries</h2>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setNewLibOpen(true)} className="gap-1.5 self-start">
+            <Plus size={14} />New Library
           </Button>
         </div>
         <div className="space-y-2">
+          {libraries.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">No libraries yet</p>
+          )}
           {libraries.map(lib => (
-            <div key={lib.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div key={lib.id} className="flex items-center justify-between gap-3 p-4 border rounded-xl bg-card">
               <p className="font-medium text-sm">{lib.icon} {lib.name}</p>
               <div className="flex gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEditLib(lib)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditLib(lib)}>
                   <Pencil size={13} />
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteLib(lib)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteLib(lib)}>
                   <Trash2 size={14} />
                 </Button>
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Danger Zone */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={15} className="text-destructive" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-destructive">Danger Zone</h2>
+        </div>
+        <div className="p-4 border border-destructive/30 rounded-xl bg-destructive/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Reset Database</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Delete all metadata, categories, tags, and collections. Files on disk are not affected.</p>
+            </div>
+            <Button variant="destructive" size="sm" onClick={() => { setResetConfirm(''); setResetOpen(true) }} className="gap-1.5">
+              <RotateCcw size={14} />Reset
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -262,6 +319,26 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete root dialog */}
+      <Dialog open={!!deleteRootTarget} onOpenChange={o => !o && setDeleteRootTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Remove "{deleteRootTarget?.label}"?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The storage root will be removed from the app configuration. Files on disk are not deleted.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRootTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteRootTarget && deleteRoot.mutate(deleteRootTarget.id)}
+              disabled={deleteRoot.isPending}
+            >
+              Remove Root
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit library dialog */}
       <Dialog open={!!editLib} onOpenChange={o => !o && setEditLib(null)}>
         <DialogContent>
@@ -289,18 +366,35 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset DB dialog */}
+      {/* Reset DB confirmation dialog */}
       <Dialog open={resetOpen} onOpenChange={o => !o && setResetOpen(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reset Database?</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            This will permanently delete all indexed entries, libraries, categories, tags, collections, and favorites.
-            Storage roots and files on disk are not affected. A full rescan will start automatically.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This will permanently delete all metadata including entries, categories, tags, collections, favorites, and saved views.
+              Files on disk will not be affected.
+            </p>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-xs font-medium text-destructive">Type "reset" to confirm</p>
+              <Input
+                value={resetConfirm}
+                onChange={e => setResetConfirm(e.target.value)}
+                placeholder="reset"
+                className="mt-2 h-8 text-sm"
+                autoFocus
+              />
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => resetDB.mutate()} disabled={resetDB.isPending}>
-              {resetDB.isPending ? 'Resetting…' : 'Reset & Rescan'}
+            <Button
+              variant="destructive"
+              onClick={() => resetDB.mutate()}
+              disabled={resetConfirm !== 'reset' || resetDB.isPending}
+            >
+              {resetDB.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              Reset Everything
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 export function LibraryPage() {
   const { libraryId } = useParams<{ libraryId: string }>()
@@ -21,16 +22,18 @@ export function LibraryPage() {
   const [editCatName, setEditCatName] = useState('')
   const [deleteCat, setDeleteCat] = useState<Category | null>(null)
 
-  const { data: library } = useQuery({
+  const libraryQuery = useQuery({
     queryKey: ['library', libraryId],
     queryFn: () => api.libraries.get(libraryId!),
     enabled: !!libraryId,
   })
-  const { data: tree = [] } = useQuery({
+  const treeQuery = useQuery({
     queryKey: ['categories', libraryId],
     queryFn: () => api.libraries.categories(libraryId!),
     enabled: !!libraryId,
   })
+  const library = libraryQuery.data
+  const tree = treeQuery.data ?? []
 
   const invalidateCats = () => qc.invalidateQueries({ queryKey: ['categories', libraryId] })
 
@@ -55,40 +58,64 @@ export function LibraryPage() {
 
   const openEditCat = (cat: Category) => { setEditCat(cat); setEditCatName(cat.name) }
 
+  if (libraryQuery.isPending || treeQuery.isPending) {
+    return <LoadingState title="Loading library" description="Preparing categories and library details." />
+  }
+
+  if (libraryQuery.error || treeQuery.error) {
+    return (
+      <ErrorState
+        title="Couldn't load this library"
+        error={libraryQuery.error ?? treeQuery.error}
+        onRetry={() => {
+          void libraryQuery.refetch()
+          void treeQuery.refetch()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{library?.icon} {library?.name}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{library?.icon} {library?.name}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{tree.length} {tree.length === 1 ? 'category' : 'categories'}</p>
+      </div>
 
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium">Categories</h2>
-          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)}>
-            <Plus size={14} className="mr-1" />New Category
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Categories</h2>
+          <Button size="sm" variant="outline" onClick={() => setNewCatOpen(true)} className="gap-1.5 self-start">
+            <Plus size={14} />New Category
           </Button>
         </div>
 
         {tree.length === 0 && (
-          <p className="text-sm text-muted-foreground">No categories yet.</p>
+          <div className="text-center py-16">
+            <Plus size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No categories yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Create categories to organize files in this library</p>
+          </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {tree.map(cat => (
             <div key={cat.id} className="relative group">
               <button
                 onClick={() => navigate(`/categories/${cat.id}`)}
-                className="w-full p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-left"
+                className="w-full p-5 rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left"
               >
-                <p className="font-medium text-sm">{cat.name}</p>
+                <p className="font-semibold text-sm">{cat.name}</p>
                 {cat.children && cat.children.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">{cat.children.length} subcategories</p>
+                  <p className="text-xs text-muted-foreground mt-1.5">{cat.children.length} subcategories</p>
                 )}
               </button>
-              <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); openEditCat(cat) }}>
-                  <Pencil size={11} />
+              <div className="absolute top-3 right-3 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm" onClick={e => { e.stopPropagation(); openEditCat(cat) }}>
+                  <Pencil size={12} />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCat(cat) }}>
-                  <Trash2 size={11} />
+                <Button variant="ghost" size="icon" className="h-7 w-7 bg-card/80 backdrop-blur-sm text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCat(cat) }}>
+                  <Trash2 size={12} />
                 </Button>
               </div>
             </div>

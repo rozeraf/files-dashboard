@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Heart, HeartOff, Pencil, Trash2, Tag, FolderOpen, Library } from 'lucide-react'
+import { ErrorState, LoadingState } from '@/components/ui/state'
 
 interface Props {
   entryId: string | null
@@ -20,6 +21,18 @@ interface Props {
 }
 
 export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Props) {
+  if (!entryId) return null
+  return <EntryDetailPanelContent entryId={entryId} onClose={onClose} onDeleted={onDeleted} onRenamed={onRenamed} />
+}
+
+interface ContentProps {
+  entryId: string
+  onClose: () => void
+  onDeleted?: () => void
+  onRenamed?: () => void
+}
+
+function EntryDetailPanelContent({ entryId, onClose, onDeleted, onRenamed }: ContentProps) {
   const qc = useQueryClient()
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')
@@ -29,11 +42,12 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   const [colOpen, setColOpen] = useState(false)
   const [colId, setColId] = useState('')
 
-  const { data } = useQuery({
+  const entryQuery = useQuery({
     queryKey: ['entry', entryId],
     queryFn: () => api.entries.get(entryId!),
     enabled: !!entryId,
   })
+  const data = entryQuery.data
 
   // For category assignment dialog
   const { data: libraries = [] } = useQuery({
@@ -155,7 +169,36 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
 
   const openRename = () => { setRenameName(data?.name ?? ''); setRenameOpen(true) }
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <Sheet open onOpenChange={o => !o && onClose()}>
+        <SheetContent className="safe-bottom w-full max-w-full overflow-y-auto sm:w-[400px]">
+          <SheetHeader>
+            <SheetTitle className="truncate text-base">File details</SheetTitle>
+          </SheetHeader>
+
+          {entryQuery.isPending && (
+            <LoadingState
+              compact
+              className="mt-4"
+              title="Loading details"
+              description="Fetching metadata and available actions for this item."
+            />
+          )}
+
+          {entryQuery.error && (
+            <ErrorState
+              compact
+              className="mt-4"
+              title="Couldn't load this item"
+              error={entryQuery.error}
+              onRetry={() => void entryQuery.refetch()}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+    )
+  }
 
   const isImage = data.mime.startsWith('image/')
   const isVideo = data.mime.startsWith('video/')
@@ -165,14 +208,14 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
   return (
     <>
       <Sheet open={!!entryId} onOpenChange={o => !o && onClose()}>
-        <SheetContent className="w-96 overflow-y-auto">
+        <SheetContent className="safe-bottom w-full max-w-full overflow-y-auto sm:w-[400px]">
           <SheetHeader>
-            <SheetTitle className="truncate">{data.name}</SheetTitle>
+            <SheetTitle className="truncate text-base">{data.name}</SheetTitle>
           </SheetHeader>
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-5">
             {/* Preview */}
-            <div className="rounded-lg overflow-hidden bg-muted aspect-video flex items-center justify-center">
+            <div className="rounded-xl overflow-hidden bg-muted aspect-video flex items-center justify-center">
               {isImage && <img src={api.fs.raw(data.id)} className="w-full h-full object-contain" alt={data.name} />}
               {isVideo && <video src={api.fs.raw(data.id)} controls className="w-full" />}
               {isAudio && <audio src={api.fs.raw(data.id)} controls className="w-full" />}
@@ -183,55 +226,55 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => toggleFav.mutate()}>
-                {data.favorited ? <HeartOff size={14} className="mr-1" /> : <Heart size={14} className="mr-1" />}
+            <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => toggleFav.mutate()} className="gap-1.5 h-8 text-xs">
+                {data.favorited ? <HeartOff size={13} /> : <Heart size={13} />}
                 {data.favorited ? 'Unfavorite' : 'Favorite'}
               </Button>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="h-8 text-xs">
                 <a href={api.fs.raw(data.id)} download={data.name}>Download</a>
               </Button>
-              <Button variant="outline" size="sm" onClick={openRename}>
-                <Pencil size={14} className="mr-1" />Rename
+              <Button variant="outline" size="sm" onClick={openRename} className="gap-1.5 h-8 text-xs">
+                <Pencil size={13} />Rename
               </Button>
-              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 size={14} className="mr-1" />Delete
+              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={13} />Delete
               </Button>
             </div>
 
             {/* Metadata */}
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{formatSize(data.size)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Modified</span><span>{formatDate(data.mtime)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span>{data.mime || data.ext}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Path</span><span className="text-xs truncate max-w-[200px]">{data.rel_path}</span></div>
+            <div className="rounded-xl border bg-card p-3.5 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground text-xs">Size</span><span className="text-xs font-medium tabular-nums">{formatSize(data.size)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground text-xs">Modified</span><span className="text-xs font-medium">{formatDate(data.mtime)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground text-xs">Type</span><span className="text-xs font-medium font-mono">{data.mime || data.ext}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground text-xs shrink-0">Path</span><span className="text-xs font-mono break-all text-right">{data.rel_path}</span></div>
             </div>
 
             {/* Categories */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Categories</p>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={openCats}>
-                  <Library size={11} />
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categories</p>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openCats}>
+                  <Library size={12} />
                 </Button>
               </div>
               {data.categories.length > 0
-                ? <div className="flex flex-wrap gap-1">{data.categories.map(c => <Badge key={c.id} variant="secondary">{c.name}</Badge>)}</div>
+                ? <div className="flex flex-wrap gap-1.5">{data.categories.map(c => <Badge key={c.id} variant="secondary" className="text-xs">{c.name}</Badge>)}</div>
                 : <p className="text-xs text-muted-foreground">None</p>
               }
             </div>
 
             {/* Tags */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Tags</p>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={openTags}>
-                  <Tag size={11} />
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tags</p>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openTags}>
+                  <Tag size={12} />
                 </Button>
               </div>
               {data.tags.length > 0
-                ? <div className="flex flex-wrap gap-1">{data.tags.map(t => (
-                    <Badge key={t.id} style={{ backgroundColor: t.color || undefined }} variant="outline">{t.name}</Badge>
+                ? <div className="flex flex-wrap gap-1.5">{data.tags.map(t => (
+                    <Badge key={t.id} style={{ backgroundColor: t.color || undefined }} variant="outline" className="text-xs">{t.name}</Badge>
                   ))}</div>
                 : <p className="text-xs text-muted-foreground">None</p>
               }
@@ -239,14 +282,14 @@ export function EntryDetailPanel({ entryId, onClose, onDeleted, onRenamed }: Pro
 
             {/* Collections */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Collections</p>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setColOpen(true)}>
-                  <FolderOpen size={11} />
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Collections</p>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setColOpen(true)}>
+                  <FolderOpen size={12} />
                 </Button>
               </div>
               {data.collections.length > 0
-                ? <div className="flex flex-wrap gap-1">{data.collections.map(c => <Badge key={c.id} variant="secondary">{c.name}</Badge>)}</div>
+                ? <div className="flex flex-wrap gap-1.5">{data.collections.map(c => <Badge key={c.id} variant="secondary" className="text-xs">{c.name}</Badge>)}</div>
                 : <p className="text-xs text-muted-foreground">None</p>
               }
             </div>

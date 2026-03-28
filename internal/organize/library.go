@@ -239,22 +239,24 @@ func (s *Store) AssignEntryCategories(entryID string, add, remove []string) erro
 
 // CategoryEntries returns paginated entries assigned to a category.
 func (s *Store) CategoryEntries(categoryID string, page, limit int) ([]model.Entry, int, error) {
-	if limit == 0 {
-		limit = 50
-	}
 	if page < 1 {
 		page = 1
 	}
-	offset := (page - 1) * limit
 
 	var total int
 	s.db.QueryRow(`SELECT COUNT(*) FROM entry_categories WHERE category_id=?`, categoryID).Scan(&total)
 
-	rows, err := s.db.Query(`
+	query := `
 		SELECT e.id,e.root_id,e.rel_path,e.parent_rel_path,e.name,e.kind,e.size,e.mtime,e.ext,e.mime,e.missing,e.updated_at
 		FROM entries e JOIN entry_categories ec ON ec.entry_id=e.id
-		WHERE ec.category_id=? ORDER BY e.name LIMIT ? OFFSET ?`,
-		categoryID, limit, offset)
+		WHERE ec.category_id=? ORDER BY e.name`
+	args := []any{categoryID}
+	if limit > 0 {
+		offset := (page - 1) * limit
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, offset)
+	}
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, 0, err
 	}

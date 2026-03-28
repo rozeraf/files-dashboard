@@ -54,6 +54,7 @@ export const api = {
   fs: {
     list: (rootId: string, path = '') => get<Entry[]>(`/fs/roots/${rootId}/entries?path=${encodeURIComponent(path)}`),
     raw: (id: string) => `/api/fs/entries/${id}/raw`,
+    thumb: (id: string) => `/api/fs/entries/${id}/thumb`,
     rename: (id: string, name: string) => post<void>(`/fs/entries/${id}/rename`, { name }),
     move: (ids: string[], destRootId: string, destRelPath: string) =>
       post<void>('/fs/entries/move', { ids, destRootId, destRelPath }),
@@ -90,7 +91,7 @@ export const api = {
     update: (id: string, body: Partial<{ name: string; parentId: string; position: number }>) =>
       patch<void>(`/categories/${id}`, body),
     delete: (id: string) => del<void>(`/categories/${id}`),
-    entries: (id: string, page = 1, limit = 50) =>
+    entries: (id: string, page = 1, limit = 0) =>
       get<PagedResponse<Entry>>(`/categories/${id}/entries?page=${page}&limit=${limit}`),
     subcategories: (id: string) => get<Category[]>(`/categories/${id}/subcategories`),
   },
@@ -115,19 +116,19 @@ export const api = {
     update: (id: string, body: Partial<{ name: string; description: string }>) =>
       patch<void>(`/collections/${id}`, body),
     delete: (id: string) => del<void>(`/collections/${id}`),
-    entries: (id: string, page = 1, limit = 50) =>
+    entries: (id: string, page = 1, limit = 0) =>
       get<PagedResponse<Entry>>(`/collections/${id}/entries?page=${page}&limit=${limit}`),
     add: (id: string, entryId: string) => post<void>(`/collections/${id}/entries`, { entryId }),
     remove: (id: string, entryId: string) => del<void>(`/collections/${id}/entries/${entryId}`),
     reorder: (id: string, order: string[]) => post<void>(`/collections/${id}/entries/reorder`, { order }),
   },
   favorites: {
-    list: (limit = 50) => get<Entry[]>(`/favorites?limit=${limit}`),
+    list: (limit = 0) => get<Entry[]>(`/favorites?limit=${limit}`),
     add: (entryId: string) => post<void>(`/favorites/${entryId}`),
     remove: (entryId: string) => del<void>(`/favorites/${entryId}`),
   },
-  recent: (limit = 50) => get<Entry[]>(`/recent?limit=${limit}`),
-  uncategorized: (page = 1, limit = 50) =>
+  recent: (limit = 0) => get<Entry[]>(`/recent?limit=${limit}`),
+  uncategorized: (page = 1, limit = 0) =>
     get<PagedResponse<Entry>>(`/uncategorized?page=${page}&limit=${limit}`),
   savedViews: {
     list: () => get<SavedView[]>('/saved-views'),
@@ -138,8 +139,9 @@ export const api = {
     delete: (id: string) => del<void>(`/saved-views/${id}`),
   },
   search: (params: Record<string, string | number>) => {
+    const nextParams = 'limit' in params ? params : { ...params, limit: 0 }
     const qs = new URLSearchParams(
-      Object.entries(params)
+      Object.entries(nextParams)
         .filter(([, v]) => v != null && v !== '')
         .map(([k, v]) => [k, String(v)])
     )
