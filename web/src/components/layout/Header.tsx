@@ -46,7 +46,7 @@ export function Header() {
         size="icon"
         onClick={toggleSidebar}
         aria-label="Open navigation"
-        className="md:hidden h-9 w-9 shrink-0 rounded-xl border border-border/60 bg-background/70 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+        className="h-9 w-9 shrink-0 rounded-xl border border-border/60 bg-background/70 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
       >
         <Menu size={18} />
       </Button>
