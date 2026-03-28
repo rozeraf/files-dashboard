@@ -13,7 +13,7 @@ export function RecentPage() {
   const qc = useQueryClient()
   const [detailId, setDetailId] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'table'>('grid')
-  const recentQuery = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent() })
+  const recentQuery = useQuery({ queryKey: ['recent', 'all'], queryFn: () => api.recent(200) })
   const data = recentQuery.data ?? []
   const invalidate = () => qc.invalidateQueries({ queryKey: ['recent'] })
 

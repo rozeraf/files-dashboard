@@ -10,7 +10,7 @@ import (
 func (s *Store) RecentEntries(limit int) ([]model.Entry, error) {
 	query := `
 		SELECT id,root_id,rel_path,parent_rel_path,name,kind,size,mtime,ext,mime,missing,updated_at
-		FROM entries WHERE missing=0 ORDER BY updated_at DESC`
+		FROM entries WHERE missing=0 AND kind='file' ORDER BY mtime DESC`
 	var (
 		rows *sql.Rows
 		err  error
