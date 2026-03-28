@@ -13,6 +13,12 @@ func Open(dsn string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// SQLite only supports one writer at a time. A single connection avoids
+	// SQLITE_BUSY errors on concurrent uploads and ensures pragmas apply to
+	// the only connection in use.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
 	pragmas := []string{
 		"PRAGMA journal_mode=WAL",
 		"PRAGMA foreign_keys=ON",
@@ -25,9 +31,6 @@ func Open(dsn string) (*sql.DB, error) {
 			return nil, err
 		}
 	}
-
-	db.SetMaxOpenConns(4)
-	db.SetMaxIdleConns(4)
 
 	if err := migrate(db); err != nil {
 		db.Close()
